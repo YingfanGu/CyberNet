@@ -278,8 +278,8 @@ if __name__ == "__main__":
 
     experiment_data_dir = join("out", "experiments", "smartcomp-digital")
     feature_df = DataFrame.from_dict(feature_data)
-    feature_df.to_csv(join(experiment_data_dir, "features.csv"))
+    feature_df.to_csv(join(experiment_data_dir, "features.csv")) #create features.csv
     reward_df = DataFrame.from_dict(tls_rewards)
-    reward_df.to_csv(join(experiment_data_dir, "rewards.csv"))
+    reward_df.to_csv(join(experiment_data_dir, "rewards.csv"))  #create rewards.csv
     tripinfo_df = DataFrame.from_dict(tripinfo_data)
-    tripinfo_df.to_csv(join(experiment_data_dir, "tripinfo.csv"))
+    tripinfo_df.to_csv(join(experiment_data_dir, "tripinfo.csv")) #create tripinfo.csv
