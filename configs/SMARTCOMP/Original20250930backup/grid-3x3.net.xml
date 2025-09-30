@@ -347,7 +347,10 @@
         <phase duration="3"  state="rryrry"/>
     </tlLogic>
     <tlLogic id="B1" type="static" programID="0" offset="0">
-        <phase duration="999999" state="rrrrrrrr"/>
+        <phase duration="42" state="GGrrGGrr"/>
+        <phase duration="3"  state="yyrryyrr"/>
+        <phase duration="42" state="rrGGrrGG"/>
+        <phase duration="3"  state="rryyrryy"/>
     </tlLogic>
     <tlLogic id="B2" type="static" programID="0" offset="0">
         <phase duration="42" state="GGrGGr"/>
