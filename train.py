@@ -36,7 +36,7 @@ trainer_kwargs = {
 
 
 if __name__ == "__main__":
-    n_episodes = 50
+    n_episodes = 5
     fed_step = 1
     NET_FILES = {
         "grid_3x3": GRID_3x3,
@@ -49,6 +49,28 @@ if __name__ == "__main__":
     ]
 
     status = "Training with `{}`! (netfile='{}', ranked={})"
+    
+    
+    ranked = True
+
+    intersection = "grid_3x3"
+    net_file = GRID_3x3
+    
+    # SinglePolicy Trainer.
+    logging.info(status.format(
+        "SinglePolicyTrainer", intersection, ranked
+    ))
+    SinglePolicyTrainer(
+        net_file=net_file, ranked=ranked,
+        out_prefix=OUT_PREFIX, trainer_kwargs=trainer_kwargs
+    ).train(n_episodes)
+
+    
+    
+    
+    
+'''
+    
     for (intersection, net_file) in NET_FILES.items():
         for ranked in RANKED:
             """
@@ -118,3 +140,5 @@ if __name__ == "__main__":
                 net_file=net_file, ranked=ranked,
                 out_prefix=OUT_PREFIX, trainer_kwargs=trainer_kwargs
             ).train(n_episodes)
+
+'''
