@@ -36,7 +36,7 @@ trainer_kwargs = {
 
 
 if __name__ == "__main__":
-    n_episodes = 5
+    n_episodes = 3
     fed_step = 1
     NET_FILES = {
         "grid_3x3": GRID_3x3,
@@ -56,15 +56,39 @@ if __name__ == "__main__":
     intersection = "grid_3x3"
     net_file = GRID_3x3
     
-    # SinglePolicy Trainer.
+    
+    
+    
+    
+    
+    # # SinglePolicy Trainer.
+    # logging.info(status.format(
+    #     "SinglePolicyTrainer", intersection, ranked
+    # ))
+    # SinglePolicyTrainer(
+    #     net_file=net_file, ranked=ranked,
+    #     out_prefix=OUT_PREFIX, trainer_kwargs=trainer_kwargs
+    # ).train(n_episodes)
+
+    
+    
+    
+        # Federated Trainer using the 'positive reward' aggregation function.
     logging.info(status.format(
-        "SinglePolicyTrainer", intersection, ranked
+        "FedPolicyTrainer (aggr='pos_reward')", intersection, ranked
     ))
-    SinglePolicyTrainer(
-        net_file=net_file, ranked=ranked,
-        out_prefix=OUT_PREFIX, trainer_kwargs=trainer_kwargs
+    traffic_aggr_prefix = f"{OUT_PREFIX}_pos-reward-aggr"
+    FedPolicyTrainer(
+        fed_step=fed_step, net_file=net_file, ranked=ranked,
+        out_prefix=traffic_aggr_prefix,
+        trainer_kwargs=trainer_kwargs,
+        weight_fn="pos_reward"
     ).train(n_episodes)
 
+    
+    
+    
+    
     
     
     
