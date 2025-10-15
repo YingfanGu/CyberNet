@@ -36,7 +36,7 @@ trainer_kwargs = {
 
 
 if __name__ == "__main__":
-    n_episodes = 3
+    n_episodes = 6  #how many episodes policies are updated for.
     fed_step = 1
     NET_FILES = {
         "grid_3x3": GRID_3x3,
