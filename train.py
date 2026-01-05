@@ -15,6 +15,9 @@ from seal.trainer.multi_agent import MultiPolicyTrainer
 from seal.trainer.single_agent import SinglePolicyTrainer
 from os.path import join
 
+# Set SUMO_HOME environment variable
+os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
+
 # This prefix is for the resubmission (aiming for SMARTCOMP).
 OUT_PREFIX = "v4"
 random_routes_config = {}
@@ -36,7 +39,7 @@ trainer_kwargs = {
 
 
 if __name__ == "__main__":
-    n_episodes = 6  #how many episodes policies are updated for.
+    n_episodes = 3  #how many episodes policies are updated for.
     fed_step = 1
     NET_FILES = {
         "grid_3x3": GRID_3x3,
