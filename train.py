@@ -16,10 +16,10 @@ from seal.trainer.single_agent import SinglePolicyTrainer
 from os.path import join
 
 # Set SUMO_HOME environment variable
-os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
+# os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
 
 # This prefix is for the resubmission (aiming for SMARTCOMP).
-OUT_PREFIX = "v4"
+OUT_PREFIX = "Cyberattack_3*3"
 random_routes_config = {}
 trainer_kwargs = {
     # =========================================================== #

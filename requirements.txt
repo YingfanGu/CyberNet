@@ -16,3 +16,4 @@ ray~=1.9.2
 gym~=0.21.0
 networkx~=2.6.3
 scipy~=1.7.3
+traci
