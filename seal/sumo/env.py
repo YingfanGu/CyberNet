@@ -3,13 +3,18 @@ import numpy as np
 from gym import spaces
 from seal.sumo.config import *
 from seal.sumo.abstract_env import AbstractSumoEnv
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 
 class SumoEnv(AbstractSumoEnv):
 
     def __init__(self, config):
         super().__init__(config)
+        # Cyberattack configuration
+        self.attack_timestep: Optional[int] = config.get("attack_timestep", None)
+        self.attacked_tls_id: Optional[str] = config.get("attacked_tls_id", None)
+        self.attack_type: str = config.get("attack_type", "all_red")
+        self.attack_triggered = False
 
     @property
     def multi_action_space(self) -> spaces.Space:
@@ -49,6 +54,10 @@ class SumoEnv(AbstractSumoEnv):
     def step(self, action_dict: Dict[Any, int]) -> Tuple[Dict, Dict, Dict, Dict]:
         if action_dict is not None:
             taken_action = self._do_action(action_dict)
+        
+        # Check if cyberattack should be triggered this step
+        self._handle_cyberattack()
+        
         self.kernel.step()
         self.step_counter += 1
         obs = self._observe()
@@ -56,7 +65,8 @@ class SumoEnv(AbstractSumoEnv):
                   for tls in self.kernel.tls_hub}
         done = {"__all__": self.__get_done()}
         info = {tls.id: {"is_ranked": self.ranked,
-                         "veh2tls_comms": tls.get_num_of_controlled_vehicles()}
+                         "veh2tls_comms": tls.get_num_of_controlled_vehicles(),
+                         "under_attack": tls.is_under_attack}
                 for tls in self.kernel.tls_hub}
         return obs, reward, done, info
 
@@ -72,6 +82,11 @@ class SumoEnv(AbstractSumoEnv):
         """
         taken_action = actions.copy()
         for tls in self.kernel.tls_hub:
+            # Skip action if TLS is under attack
+            if tls.is_under_attack:
+                taken_action[tls.id] = 0
+                continue
+            
             if self.action_timer.must_change(tls.index) or \
                     (actions[tls.id] == 1 and self.action_timer.can_change(tls.index)):
                 tls.next_phase()
@@ -88,6 +103,27 @@ class SumoEnv(AbstractSumoEnv):
             return True
         else:
             return self.kernel.done()
+
+    def _handle_cyberattack(self) -> None:
+        """Check if a cyberattack should be triggered at this timestep.
+        
+        If attack_timestep matches current step_counter and attacked_tls_id is set,
+        trigger the attack on that TLS. Also maintain attack state for TLS under attack.
+        """
+        # Trigger attack if conditions are met
+        if (self.attack_timestep is not None and 
+            self.attacked_tls_id is not None and 
+            self.step_counter == self.attack_timestep and 
+            not self.attack_triggered):
+            
+            tls_to_attack = self.kernel.tls_hub[self.attacked_tls_id]
+            tls_to_attack.force_attack(attack_type=self.attack_type)
+            self.attack_triggered = True
+        
+        # Maintain attack state for all TLS under attack
+        for tls in self.kernel.tls_hub:
+            if tls.is_under_attack:
+                tls.step_under_attack()
 
     def _get_reward(self, obs: np.ndarray) -> float:
         """Negative reward function based on the number of halting vehicles, waiting time,

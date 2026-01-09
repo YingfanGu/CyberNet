@@ -25,6 +25,8 @@ class TrafficLight:
     state: int
     phase: str
     ranked: bool
+    is_under_attack: bool
+    attack_type: str  # "all_red" or "stuck_phase"
 
     def __init__(
         self,
@@ -45,6 +47,8 @@ class TrafficLight:
         self.state = random.randrange(self.num_phases)
         self.phase = self.program[self.state]
         self.ranked = ranked
+        self.is_under_attack = False
+        self.attack_type = None
 
     @property
     def action_space(self) -> spaces.Box:
@@ -71,6 +75,55 @@ class TrafficLight:
             traci.trafficlight.setRedYellowGreenState(self.id, self.phase)
         except traci.exceptions.FatalTraCIError:
             pass
+
+    def force_attack(self, attack_type: str = "all_red") -> None:
+        """Force this traffic light into an attacked state.
+        
+        Args:
+            attack_type (str): Type of attack - "all_red" (blocks all movements)
+                              or "stuck_phase" (locks into inefficient phase)
+        """
+        self.is_under_attack = True
+        self.attack_type = attack_type
+        
+        if attack_type == "all_red":
+            # Find the all-red state in the program, or create one
+            all_red_phase = len(self.program[0]) * STATE_r_STR
+            if all_red_phase in self.program:
+                self.state = self.program.index(all_red_phase)
+                self.phase = all_red_phase
+            else:
+                # Fallback: use first phase which is typically permissive
+                self.state = 0
+                self.phase = self.program[0]
+            try:
+                traci.trafficlight.setRedYellowGreenState(self.id, self.phase)
+            except traci.exceptions.FatalTraCIError:
+                pass
+        elif attack_type == "stuck_phase":
+            # Keep current phase locked (do not advance)
+            # The phase will be enforced in step()
+            pass
+
+    def step_under_attack(self) -> None:
+        """Called during step() if TLS is under attack. Maintains attack state."""
+        if self.is_under_attack:
+            if self.attack_type == "all_red":
+                # Continuously enforce all-red
+                all_red_phase = len(self.program[0]) * STATE_r_STR
+                if all_red_phase in self.program:
+                    try:
+                        traci.trafficlight.setRedYellowGreenState(self.id, all_red_phase)
+                    except traci.exceptions.FatalTraCIError:
+                        pass
+            elif self.attack_type == "stuck_phase":
+                # Do nothing - phase stays locked
+                pass
+
+    def clear_attack(self) -> None:
+        """Clear the attack state (mitigation/recovery)."""
+        self.is_under_attack = False
+        self.attack_type = None
 
     def get_program(
         self,
