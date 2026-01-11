@@ -3,18 +3,43 @@ import numpy as np
 from gym import spaces
 from seal.sumo.config import *
 from seal.sumo.abstract_env import AbstractSumoEnv
+from seal.trust import TrustScorer
 from typing import Any, Dict, List, Tuple, Optional
 
 
 class SumoEnv(AbstractSumoEnv):
 
     def __init__(self, config):
+        # Initialize trust_scorer before calling super().__init__ 
+        # because parent's __init__ calls reset()
+        self.trust_scorer: Optional[TrustScorer] = None
+        self.use_trust_scoring: bool = config.get("use_trust_scoring", False)
+        
         super().__init__(config)
+        
         # Cyberattack configuration
         self.attack_timestep: Optional[int] = config.get("attack_timestep", None)
         self.attacked_tls_id: Optional[str] = config.get("attacked_tls_id", None)
         self.attack_type: str = config.get("attack_type", "all_red")
         self.attack_triggered = False
+        
+        # Initialize trust scorer if enabled
+        if self.use_trust_scoring:
+            self.trust_scorer = TrustScorer(
+                tls_graph=self.kernel.tls_hub.tls_graph,
+                tls_ids=self.kernel.tls_hub.ids,
+                window_size=config.get("trust_window_size", 20),
+                spillback_threshold=config.get("trust_spillback_threshold", 0.15),
+                phase_lock_threshold=config.get("trust_phase_lock_threshold", 30),
+                ema_alpha=config.get("trust_ema_alpha", 0.1),
+                suspected_threshold=config.get("trust_suspected_threshold", 0.5)
+            )
+
+    def reset(self) -> Any:
+        """Reset environment and trust scorer for new episode."""
+        if self.trust_scorer is not None:
+            self.trust_scorer.reset()
+        return super().reset()
 
     @property
     def multi_action_space(self) -> spaces.Space:
@@ -64,10 +89,24 @@ class SumoEnv(AbstractSumoEnv):
         reward = {tls.id: self._get_reward(obs[tls.id])
                   for tls in self.kernel.tls_hub}
         done = {"__all__": self.__get_done()}
+        
+        # Update trust scores if enabled
+        if self.trust_scorer is not None:
+            occupancies = {tls.id: obs[tls.id][0] for tls in self.kernel.tls_hub}
+            phases = {tls.id: tls.state for tls in self.kernel.tls_hub}
+            self.trust_scorer.update(occupancies, phases)
+        
         info = {tls.id: {"is_ranked": self.ranked,
                          "veh2tls_comms": tls.get_num_of_controlled_vehicles(),
                          "under_attack": tls.is_under_attack}
                 for tls in self.kernel.tls_hub}
+        
+        # Add trust scores to info if available
+        if self.trust_scorer is not None:
+            for tls in self.kernel.tls_hub:
+                info[tls.id]["trust_score"] = self.trust_scorer.get_trust_score(tls.id)
+                info[tls.id]["is_suspected"] = self.trust_scorer.is_suspected_compromised(tls.id)
+        
         return obs, reward, done, info
 
     def _do_action(self, actions: Dict[Any, int]) -> List[int]:

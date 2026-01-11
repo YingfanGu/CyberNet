@@ -4,7 +4,7 @@ import os
 from seal.logging import *
 from collections import defaultdict
 from seal.sumo.env import SumoEnv
-from typing import Any, Dict, List, NewType
+from typing import Any, Dict, List, NewType, Optional
 from seal.trainer.base import BaseTrainer
 from seal.trainer.communication.fed_callback import FedRLCommCallback
 from seal.trainer.data.parser import DataParser
@@ -23,7 +23,8 @@ WEIGHT_FUNCTIONS = {
     "naive":      naive_weight_function,       # Best (what is used in publication)
     "neg_reward": neg_reward_weight_function,  # BAD
     "pos_reward": pos_reward_weight_function,  # Good
-    "traffic":    traffic_weight_function      # Experimental
+    "traffic":    traffic_weight_function,     # Experimental
+    "trust":      "trust_weight_function"      # Trust-weighted (resilience against attacks)
 }
 
 
@@ -46,10 +47,23 @@ class FedPolicyTrainer(BaseTrainer):
         self.episode_data = defaultdict(lambda: defaultdict(float))
         self.weight_fn = kwargs.get("weight_fn", DEFAULT_AGGR_FN)
         assert self.weight_fn in WEIGHT_FUNCTIONS
+        
+        # Trust scores for resilience against compromised agents
+        self.trust_scores: Dict[str, float] = {}
+        self.use_trust_weighting: bool = (self.weight_fn == "trust")
 
     def __reset_reward_tracker(self) -> None:
         for policy in self.reward_tracker:
             self.reward_tracker[policy] = 0.0
+
+    def set_trust_scores(self, trust_scores: Dict[str, float]) -> None:
+        """
+        Update trust scores for agents (used in trust-weighted aggregation).
+        
+        Args:
+            trust_scores: Dict mapping policy_id to trust_score in [0,1]
+        """
+        self.trust_scores = trust_scores
 
     def on_make_final_policy(self) -> Weights:
         policy_dict = {policy_id: self.ray_trainer.get_policy(policy_id)
@@ -154,10 +168,18 @@ class FedPolicyTrainer(BaseTrainer):
         # weight_fn: str="traffic"
     ) -> Weights:
         # STEP 1: Grab the aggregation function specified at initialization.
-        weight_fn = WEIGHT_FUNCTIONS[self.weight_fn]
-
-        # STEP 2: Compute the coefficients for each policy in the system based on reward.
-        coeffs = weight_fn(self.episode_data)
+        weight_fn_impl = WEIGHT_FUNCTIONS[self.weight_fn]
+        
+        # Special handling for trust-weighted aggregation
+        if self.weight_fn == "trust" and self.trust_scores:
+            # STEP 2a: Compute trust-weighted coefficients
+            coeffs = trust_weight_function(self.episode_data, self.trust_scores)
+        else:
+            # STEP 2b: Compute coefficients using standard weight function
+            if isinstance(weight_fn_impl, str):
+                # Handle string reference (shouldn't happen with current code)
+                weight_fn_impl = WEIGHT_FUNCTIONS.get(weight_fn_impl, pos_reward_weight_function)
+            coeffs = weight_fn_impl(self.episode_data)
 
         # STEP 3: Compute the reward-based averaged policy weights by weight key.
         new_params = {}
