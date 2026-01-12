@@ -27,7 +27,8 @@ class BaseCommCallback(DefaultCallbacks):
         for key in self.comm_cost:
             comm_type, policy_id = key
             comm_type = comm_type.replace("_", "-")
-            new_key = f"policy_{policy_id}_comm={comm_type}"
+            # Replace '=' with '_' to avoid Ray Tune metric name conflicts
+            new_key = f"policy_{policy_id}_comm_{comm_type}"
             episode.custom_metrics[new_key] = self.comm_cost[key]
 
             if new_key not in episode.hist_data:

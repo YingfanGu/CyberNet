@@ -60,7 +60,7 @@ class DataParser:
         comm_type: str,
         iteration: int = None
     ) -> int:
-        policy_key = f"policy_{policy_id}_comm={comm_type}"
+        policy_key = f"policy_{policy_id}_comm_{comm_type}"
         if iteration is None:
             i = self.results_data["episodes_this_iter"]
             comm_cost = sum(self.result_data["hist_stats"][policy_key][-i:])
@@ -69,7 +69,7 @@ class DataParser:
         return comm_cost
 
     def num_vehicles(self, policy_id: str, iteration=None) -> int:
-        policy_key = f"policy_{policy_id}_comm={VEH2TLS_COMM}"
+        policy_key = f"policy_{policy_id}_comm_{VEH2TLS_COMM}"
         if iteration is None:
             i = self.result_data["episodes_this_iter"]
             n_vehicles = sum(self.result_data["hist_stats"][policy_key][-i:])
