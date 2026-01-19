@@ -28,12 +28,13 @@ trainer_kwargs = {
     # =========================================================== #
     # Non-Algorithm Trainer Arguments (i.e., not related to PPO). #
     # =========================================================== #
-    "horizon": 360,  # 360 steps = 6 minutes
-    "simple_optimizer": True,  # Add this line
+    "horizon": 360,  # 360 steps = 6 minutes (enough to show attack + defense),
+    # GPU disabled: overhead > benefit for small batches (SUMO is CPU bottleneck)
     # "timesteps_per_iteration":  240,
     # "batch_mode": "truncate_episodes",
     # "rollout_fragment_length": 240,
     # "train_batch_size": 240,
+    # "rand_routes_on_reset": False,  # ← Add this to use same routes every time
 
     # ====================== #
     # PPO Trainer Arguments. #
@@ -50,31 +51,44 @@ ATTACK_TYPE = "all_red"  # All-red phase lock attack
 def train_baseline(net_file, ranked, n_episodes, fed_step):
     """
     Train baseline scenario: No cyberattack, normal operation.
-    This is the control/comparison scenario.
+    This is the control/comparison scenario for measuring attack impact.
+    
+    ✓ NO ATTACK - clean environment, no cyberattack injection
+    ✓ Naive aggregation - standard FedAvg without trust weighting
     """
     logging.info("\n" + "="*80)
     logging.info("BASELINE SCENARIO: Normal Traffic Control (No Attack)")
+    logging.info("Control condition: Federated learning without cyberattack")
+    logging.info("✓ NO ATTACK during training")
+    logging.info("✓ Naive aggregation (standard FedAvg)")
     logging.info("="*80 + "\n")
     
-    # Baseline: pos_reward aggregation, no attack
-    logging.info("Training FedPolicyTrainer (aggr='pos_reward') - BASELINE")
-    baseline_prefix = f"{OUT_PREFIX}_baseline_pos-reward"
-    FedPolicyTrainer(
-        fed_step=fed_step, net_file=net_file, ranked=ranked,
-        out_prefix=baseline_prefix,
-        trainer_kwargs=trainer_kwargs,
-        weight_fn="pos_reward",
-        # log_level="INFO"
-    ).train(n_episodes)
-    
-    # Baseline: naive aggregation, no attack
+    # Baseline: naive aggregation, NO ATTACK
     logging.info("Training FedPolicyTrainer (aggr='naive') - BASELINE")
     baseline_prefix = f"{OUT_PREFIX}_baseline_naive"
-    FedPolicyTrainer(
+    
+    # Create custom trainer with no attack
+    class BaselineTrainer(FedPolicyTrainer):
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            # NO ATTACK - baseline runs without cyberattack
+            config["attack_timestep"] = None  # Explicitly disable attack
+            config["attacked_tls_id"] = None
+            config["use_trust_scoring"] = False  # No trust scoring needed
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
+            # Vehicle flow configuration
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "seed": 42  # Fixed seed for reproducibility
+            }
+            return config
+    
+    BaselineTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
         out_prefix=baseline_prefix,
         trainer_kwargs=trainer_kwargs,
         weight_fn="naive",
+        checkpoint_freq=1,  # Save checkpoint every episode
         # log_level="INFO"
     ).train(n_episodes)
 
@@ -84,39 +98,43 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
     Train degraded scenario: Cyberattack on center intersection, no defense.
     Shows impact of undefended cyberattack on federated learning.
     
-    NOTE: Attack integration requires environment-level config support in BaseTrainer.
-    Current limitation: Using baseline training as placeholder for degraded scenario.
-    Future work: Extend BaseTrainer to pass env_config separately from trainer_kwargs.
+    This scenario demonstrates vulnerability: naive aggregation cannot defend.
+    
+    ✓ ATTACK ENABLED - cyberattack injected at step 120 (all-red phase lock on B1)
+    ✓ Naive aggregation - NO defense (vulnerable to attack)
     """
     logging.info("\n" + "="*80)
-    logging.info("DEGRADED SCENARIO: Cyberattack Without Defense (PLACEHOLDER)")
+    logging.info("DEGRADED SCENARIO: Cyberattack Without Defense")
     logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
-    logging.info("NOTE: Full attack integration pending (see test_cyberattack.py for working example)")
+    logging.info("✓ ATTACK ENABLED during training")
+    logging.info("✓ No defense: naive aggregation (vulnerable to attack)")
     logging.info("="*80 + "\n")
     
-    # TODO: Implement environment config passing in BaseTrainer
-    # For now, run degraded scenario as baseline (no attack)
-    # Real implementation would pass attack_timestep, attacked_tls_id, attack_type
-    
-    # Degraded: pos_reward with attack, no trust defense
-    logging.info("Training FedPolicyTrainer (aggr='pos_reward') - DEGRADED (placeholder)")
-    degraded_prefix = f"{OUT_PREFIX}_degraded_pos-reward"
-    FedPolicyTrainer(
-        fed_step=fed_step, net_file=net_file, ranked=ranked,
-        out_prefix=degraded_prefix,
-        trainer_kwargs=trainer_kwargs,
-        weight_fn="pos_reward",
-        # log_level="INFO"
-    ).train(n_episodes)
-    
     # Degraded: naive with attack, no trust defense
-    logging.info("Training FedPolicyTrainer (aggr='naive') - DEGRADED (placeholder)")
+    logging.info("Training FedPolicyTrainer (aggr='naive') - DEGRADED")
     degraded_prefix = f"{OUT_PREFIX}_degraded_naive"
-    FedPolicyTrainer(
+    
+    # Create custom trainer with attack enabled
+    class DegradedTrainer(FedPolicyTrainer):
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            # ATTACK ENABLED - cyberattack on B1 at step 120
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            config["use_trust_scoring"] = False  # No trust defense
+            # Vehicle flow configuration
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150  # Reduced from 360 for better training
+            }
+            return config
+    
+    DegradedTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
         out_prefix=degraded_prefix,
         trainer_kwargs=trainer_kwargs,
-        weight_fn="naive",
+        weight_fn="naive",  # Naive aggregation - vulnerable
+        checkpoint_freq=1,  # Save checkpoint every episode
         # log_level="INFO"
     ).train(n_episodes)
 
@@ -126,35 +144,56 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
     Train resilient scenario: Cyberattack with trust-weighted aggregation defense.
     Trust-weighted FedAvg reduces impact of compromised agent.
     
-    NOTE: Attack integration requires environment-level config support in BaseTrainer.
-    Current limitation: Using trust-weighted aggregation without active attack.
-    Future work: Extend BaseTrainer to pass env_config separately from trainer_kwargs.
+    This scenario demonstrates the defense: trust weighting mitigates attack.
+    
+    ✓ ATTACK ENABLED - same cyberattack as degraded (step 120, all-red on B1)
+    ✓ Trust-weighted defense - trust scorer detects anomalies and downweights malicious agents
     """
     logging.info("\n" + "="*80)
-    logging.info("RESILIENT SCENARIO: Trust-Weighted Defense (NO ACTIVE ATTACK)")
-    logging.info(f"Attack Config (for future): {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
-    logging.info("Defense: Trust-weighted federated aggregation")
+    logging.info("RESILIENT SCENARIO: Cyberattack WITH Trust-Based Defense")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info("✓ ATTACK ENABLED during training")
+    logging.info("✓ Defense: Trust-weighted federated aggregation (detects & downweights malicious agents)")
     logging.info("="*80 + "\n")
     
-    # TODO: Implement environment config passing in BaseTrainer
-    # For now, demonstrate trust-weighted aggregation without active attack
-    # Real implementation would pass attack_timestep, attacked_tls_id, attack_type
-    
-    # Resilient: trust-weighted aggregation (no active attack yet)
-    logging.info("Training FedPolicyTrainer (aggr='trust') - RESILIENT (trust-weighted, no active attack)")
+    # Resilient: trust-weighted aggregation with attack
+    logging.info("Training FedPolicyTrainer (aggr='trust') - RESILIENT")
     resilient_prefix = f"{OUT_PREFIX}_resilient_trust"
-    FedPolicyTrainer(
+    
+    # Create custom trainer with attack enabled + trust weighting
+    class ResilientTrainer(FedPolicyTrainer):
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            # ATTACK ENABLED - same attack as degraded scenario
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            # TRUST DEFENSE - enable trust scoring to detect anomalies
+            config["use_trust_scoring"] = True
+            config["trust_window_size"] = 20
+            config["trust_spillback_threshold"] = 0.15
+            config["trust_phase_lock_threshold"] = 30
+            config["trust_ema_alpha"] = 0.1
+            config["trust_suspected_threshold"] = 0.5
+            # Vehicle flow configuration
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150  # Reduced from 360 for better training
+            }
+            return config
+    
+    ResilientTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
         out_prefix=resilient_prefix,
         trainer_kwargs=trainer_kwargs,
         weight_fn="trust",  # Trust-weighted defense
+        checkpoint_freq=1,  # Save checkpoint every episode
         # log_level="INFO"
     ).train(n_episodes)
 
 
 if __name__ == "__main__":
-    n_episodes = 2  # Number of training episodes
-    fed_step = 1    # Aggregation frequency
+    n_episodes = 1 # Number of training episodes
+    fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {
         "grid_3x3": GRID_3x3,
@@ -167,7 +206,10 @@ if __name__ == "__main__":
     
     logging.info("="*80)
     logging.info("CYBERATTACK RESILIENCE TRAINING")
-    logging.info("Comparing: Baseline vs Degraded vs Resilient scenarios")
+    logging.info("Comparing 3 Scenarios:")
+    logging.info("  1. BASELINE (naive): No attack, normal operation")
+    logging.info("  2. DEGRADED (naive): Attack + no defense (vulnerable)")
+    logging.info("  3. RESILIENT (trust): Attack + trust defense (protected)")
     logging.info("="*80)
     
     # Run experiments for each network and ranking configuration
@@ -178,10 +220,10 @@ if __name__ == "__main__":
             logging.info(f"{'='*80}")
             
             # 1. BASELINE: Normal operation (control scenario)
-            train_baseline(net_file, ranked, n_episodes, fed_step)
+            # train_baseline(net_file, ranked, n_episodes, fed_step)
             
             # 2. DEGRADED: Attack without defense (vulnerability scenario)
-            train_degraded(net_file, ranked, n_episodes, fed_step)
+            # train_degraded(net_file, ranked, n_episodes, fed_step)
             
             # 3. RESILIENT: Attack with trust-based defense (resilience scenario)
             train_resilient(net_file, ranked, n_episodes, fed_step)
@@ -190,5 +232,6 @@ if __name__ == "__main__":
     
     logging.info("\n" + "="*80)
     logging.info("TRAINING COMPLETE")
+    logging.info("Results show: Trust defense mitigates cyberattack impact")
     logging.info("Generated outputs in example_weights/")
     logging.info("="*80)

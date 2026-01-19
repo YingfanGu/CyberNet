@@ -178,7 +178,7 @@ class SumoEnv(AbstractSumoEnv):
         float
             The reward for this step
         """
-        return -1 * (obs[LANE_OCCUPANCY] + obs[HALTED_LANE_OCCUPANCY])**2
+        return -1 * (obs[LANE_OCCUPANCY] + obs[HALTED_LANE_OCCUPANCY])**2  #how to calculate reward
 
     def _observe(self) -> Dict[Any, np.ndarray]:
         """Get the observations across all the trafficlights, indexed by trafficlight id.
