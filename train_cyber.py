@@ -11,6 +11,7 @@ Trains federated RL agents to handle traffic control under attack.
 Refer to original train.py for base pipeline.
 """
 import os
+import pickle
 from netfiles import *
 from seal.logging import *
 from seal.trainer.fed_agent import FedPolicyTrainer
@@ -69,6 +70,14 @@ def train_baseline(net_file, ranked, n_episodes, fed_step):
     
     # Create custom trainer with no attack
     class BaselineTrainer(FedPolicyTrainer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set up directory for episode-specific weights
+            self.episode_weights_dir = os.path.join(
+                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                self.out_prefix
+            )
+        
         def env_config_fn(self):
             config = super().env_config_fn()
             # NO ATTACK - baseline runs without cyberattack
@@ -82,6 +91,19 @@ def train_baseline(net_file, ranked, n_episodes, fed_step):
                 "seed": 42  # Fixed seed for reproducibility
             }
             return config
+        
+        def save_test_policy(self):
+            # Call parent to save the main policy
+            weights = super().save_test_policy()
+            
+            # Also save episode-specific weights
+            os.makedirs(self.episode_weights_dir, exist_ok=True)
+            episode_file = os.path.join(self.episode_weights_dir, f"{self._round:06d}.pkl")
+            with open(episode_file, "wb") as f:
+                pickle.dump(weights, f)
+            logging.info(f"Saved episode weights: {episode_file}")
+            
+            return weights
     
     BaselineTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
@@ -116,6 +138,14 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
     
     # Create custom trainer with attack enabled
     class DegradedTrainer(FedPolicyTrainer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set up directory for episode-specific weights
+            self.episode_weights_dir = os.path.join(
+                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                self.out_prefix
+            )
+        
         def env_config_fn(self):
             config = super().env_config_fn()
             # ATTACK ENABLED - cyberattack on B1 at step 120
@@ -123,11 +153,26 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
             config["attacked_tls_id"] = ATTACKED_TLS_ID
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # No trust defense
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
             # Vehicle flow configuration
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150  # Reduced from 360 for better training
+                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "seed": 42  # Fixed seed for reproducibility
             }
             return config
+        
+        def save_test_policy(self):
+            # Call parent to save the main policy
+            weights = super().save_test_policy()
+            
+            # Also save episode-specific weights
+            os.makedirs(self.episode_weights_dir, exist_ok=True)
+            episode_file = os.path.join(self.episode_weights_dir, f"{self._round:06d}.pkl")
+            with open(episode_file, "wb") as f:
+                pickle.dump(weights, f)
+            logging.info(f"Saved episode weights: {episode_file}")
+            
+            return weights
     
     DegradedTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
@@ -162,6 +207,14 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
     
     # Create custom trainer with attack enabled + trust weighting
     class ResilientTrainer(FedPolicyTrainer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set up directory for episode-specific weights
+            self.episode_weights_dir = os.path.join(
+                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                self.out_prefix
+            )
+        
         def env_config_fn(self):
             config = super().env_config_fn()
             # ATTACK ENABLED - same attack as degraded scenario
@@ -170,6 +223,7 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             config["attack_type"] = ATTACK_TYPE
             # TRUST DEFENSE - enable trust scoring to detect anomalies
             config["use_trust_scoring"] = True
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
             config["trust_window_size"] = 20
             config["trust_spillback_threshold"] = 0.15
             config["trust_phase_lock_threshold"] = 30
@@ -177,9 +231,23 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             config["trust_suspected_threshold"] = 0.5
             # Vehicle flow configuration
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150  # Reduced from 360 for better training
+                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "seed": 42  # Fixed seed for reproducibility
             }
             return config
+        
+        def save_test_policy(self):
+            # Call parent to save the main policy
+            weights = super().save_test_policy()
+            
+            # Also save episode-specific weights
+            os.makedirs(self.episode_weights_dir, exist_ok=True)
+            episode_file = os.path.join(self.episode_weights_dir, f"{self._round:06d}.pkl")
+            with open(episode_file, "wb") as f:
+                pickle.dump(weights, f)
+            logging.info(f"Saved episode weights: {episode_file}")
+            
+            return weights
     
     ResilientTrainer(
         fed_step=fed_step, net_file=net_file, ranked=ranked,
@@ -192,7 +260,7 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
 
 
 if __name__ == "__main__":
-    n_episodes = 1 # Number of training episodes
+    n_episodes = 20 # Number of training episodes
     fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {

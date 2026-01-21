@@ -21,6 +21,9 @@ from seal.trainer.single_agent import SinglePolicyTrainer
 from os.path import join
 import argparse
 
+# Set environment variable to suppress Ray's argparse
+os.environ['RAY_DISABLE_MEMORY_MONITOR'] = '1'
+
 # Set SUMO_HOME environment variable
 # os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
 
@@ -92,11 +95,12 @@ def find_latest_checkpoint(scenario_name):
     if clean_checkpoints:
         clean_checkpoints.sort(reverse=True)  # Sort by checkpoint number, descending
         latest_num, checkpoint_dir = clean_checkpoints[0]
+        checkpoint_file = os.path.join(checkpoint_dir, f"checkpoint_{latest_num:06d}.pkl")
         logging.info(f"Found clean checkpoints! Using latest: checkpoint_{latest_num:06d}.pkl in {checkpoint_dir}")
         # Normalize path to use forward slashes
-        checkpoint_dir = checkpoint_dir.replace("\\", "/")
-        logging.info(f"Selected latest checkpoint for '{scenario_name}' (#{latest_num}): {checkpoint_dir}")
-        return checkpoint_dir
+        checkpoint_file = checkpoint_file.replace("\\", "/")
+        logging.info(f"Selected latest checkpoint for '{scenario_name}' (#{latest_num}): {checkpoint_file}")
+        return checkpoint_file
     
     # Fallback: look for old Ray checkpoint directories
     logging.info("No clean checkpoints found, falling back to old Ray checkpoints...")
@@ -160,6 +164,11 @@ def resume_baseline(net_file, ranked, n_episodes, fed_step, checkpoint):
             config["attack_timestep"] = None
             config["attacked_tls_id"] = None
             config["use_trust_scoring"] = False
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
             return config
     
     trainer = BaselineTrainer(
@@ -167,6 +176,7 @@ def resume_baseline(net_file, ranked, n_episodes, fed_step, checkpoint):
         out_prefix=baseline_prefix,
         trainer_kwargs=trainer_kwargs,
         weight_fn="naive",
+        checkpoint_freq=1,  # Match train_cyberattack.py baseline config
     )
     
     # Ray's restore expects the checkpoint directory itself
@@ -196,6 +206,10 @@ def resume_degraded(net_file, ranked, n_episodes, fed_step, checkpoint):
             config["attacked_tls_id"] = ATTACKED_TLS_ID
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
             return config
     
     trainer = DegradedTrainer(
@@ -203,6 +217,7 @@ def resume_degraded(net_file, ranked, n_episodes, fed_step, checkpoint):
         out_prefix=degraded_prefix,
         trainer_kwargs=trainer_kwargs,
         weight_fn="naive",
+        checkpoint_freq=1,  # Match train_cyberattack.py degraded config
     )
     
     # Ray's restore expects the checkpoint directory itself
@@ -237,6 +252,9 @@ def resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint):
             config["trust_phase_lock_threshold"] = 30
             config["trust_ema_alpha"] = 0.1
             config["trust_suspected_threshold"] = 0.5
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150
+            }
             return config
     
     trainer = ResilientTrainer(
@@ -244,6 +262,7 @@ def resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint):
         out_prefix=resilient_prefix,
         trainer_kwargs=trainer_kwargs,
         weight_fn="trust",
+        checkpoint_freq=1,  # Match train_cyberattack.py resilient config
     )
     
     # Ray's restore expects the checkpoint directory itself
@@ -256,6 +275,9 @@ def resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint):
 
 
 def main():
+    # Save original argv before parsing
+    original_argv = sys.argv.copy()
+    
     parser = argparse.ArgumentParser(
         description="Resume cyberattack training from checkpoint"
     )
@@ -280,6 +302,11 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # Clear sys.argv to prevent trainer from trying to parse arguments
+    # Set to empty list so argparse has no arguments to process
+    sys.argv = [original_argv[0]]
+    
     n_episodes = args.episodes
     fed_step = 1
     

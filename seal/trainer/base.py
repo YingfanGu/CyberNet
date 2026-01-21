@@ -58,7 +58,7 @@ class BaseTrainer(ABC):
 
     def __init__(
             self,
-            checkpoint_freq: int = 5,
+            checkpoint_freq: int = 1,  #Yingfan changed from 5 to 1
             env: AbstractSumoEnv = None,
             gamma: float = 0.95,
             learning_rate: float = 0.001,
@@ -318,6 +318,11 @@ class BaseTrainer(ABC):
             logging.warning("Checkpoint contains no policy weights")
             return
         
+        # CRITICAL: Set self._round to the loaded episode number
+        # This ensures checkpoint resumption continues from the correct episode
+        self._round = episode
+        logging.info(f"Set training round to {self._round} (from checkpoint episode {episode})")
+        
         # Restore weights to each policy
         weights_loaded = 0
         weights_failed = 0
@@ -328,12 +333,27 @@ class BaseTrainer(ABC):
                 policy.set_weights(weights)
                 logging.debug(f"Restored weights for policy {policy_id}")
                 weights_loaded += 1
+                
+                # CRITICAL: Verify the weights were actually set
+                # This helps diagnose if weights aren't being properly applied
+                loaded_weights = policy.get_weights()
+                if loaded_weights and isinstance(loaded_weights, dict):
+                    for key in list(loaded_weights.keys())[:2]:  # Check first 2 keys as sample
+                        orig = weights.get(key)
+                        loaded = loaded_weights.get(key)
+                        if orig is not None and loaded is not None:
+                            import numpy as np
+                            match = np.allclose(orig, loaded) if isinstance(orig, np.ndarray) else (orig == loaded)
+                            if not match:
+                                logging.warning(f"Policy {policy_id} weight key '{key}' mismatch after set_weights!")
+                            else:
+                                logging.debug(f"Policy {policy_id} weight key '{key}' verified OK")
             except Exception as e:
                 logging.debug(f"Could not restore weights for policy {policy_id}: {e}")
                 weights_failed += 1
         
         if weights_loaded > 0:
-            logging.info(f"Checkpoint restored (episode {episode}): {weights_loaded} policies loaded")
+            logging.info(f"Checkpoint restored (episode {episode}): {weights_loaded} policies loaded, {weights_failed} failed")
         else:
             logging.warning(f"Could not load weights from checkpoint. Training will continue with fresh weights.")
 
@@ -590,6 +610,8 @@ class BaseTrainer(ABC):
         if kwargs.get("checkpoint", None) is not None:
             logging.info(f"Resuming from checkpoint: {kwargs['checkpoint']}")
             self.load(kwargs["checkpoint"])
+            # Get the starting round from the loaded checkpoint
+            start_round = self._round + 1 if hasattr(self, '_round') else 0
         else:
             logging.info("Starting fresh training (no checkpoint)")
             self.policies = self.on_policy_setup()
@@ -600,12 +622,13 @@ class BaseTrainer(ABC):
                 temp = next(iter(self.policies.values()))
                 self.policies[GLOBAL_POLICY_VAR] = temp
             self.on_setup()
+            start_round = 0
         
-        # Log starting round
-        start_round = self._round + 1 if hasattr(self, '_round') else 0
-        logging.info(f"Training rounds: {start_round} to {num_rounds - 1}")
+        # Calculate the end round (start_round + num_rounds additional rounds)
+        end_round = start_round + num_rounds
+        logging.info(f"Training rounds: {start_round} to {end_round - 1}")
         
-        for r in range(num_rounds):
+        for r in range(start_round, end_round):
             self._round = r
             self._result = self.ray_trainer.train()
             self.on_data_recording_step()
