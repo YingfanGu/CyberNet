@@ -156,7 +156,7 @@ def resume_baseline(net_file, ranked, n_episodes, fed_step, checkpoint):
     logging.info("="*80 + "\n")
     
     logging.info("Resuming FedPolicyTrainer (aggr='naive') - BASELINE")
-    baseline_prefix = f"{OUT_PREFIX}_baseline_naive"
+    baseline_prefix = f"{OUT_PREFIX}_baseline_naive_resume"  # _resume suffix to distinguish from initial training
     
     class BaselineTrainer(FedPolicyTrainer):
         def env_config_fn(self):
@@ -197,7 +197,7 @@ def resume_degraded(net_file, ranked, n_episodes, fed_step, checkpoint):
     logging.info("="*80 + "\n")
     
     logging.info("Resuming FedPolicyTrainer (aggr='naive') - DEGRADED")
-    degraded_prefix = f"{OUT_PREFIX}_degraded_naive"
+    degraded_prefix = f"{OUT_PREFIX}_degraded_naive_resume"  # _resume suffix to distinguish from initial training
     
     class DegradedTrainer(FedPolicyTrainer):
         def env_config_fn(self):
@@ -238,7 +238,7 @@ def resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint):
     logging.info("="*80 + "\n")
     
     logging.info("Resuming FedPolicyTrainer (aggr='trust') - RESILIENT")
-    resilient_prefix = f"{OUT_PREFIX}_resilient_trust"
+    resilient_prefix = f"{OUT_PREFIX}_resilient_trust_resume"  # _resume suffix to distinguish from initial training
     
     class ResilientTrainer(FedPolicyTrainer):
         def env_config_fn(self):
@@ -371,16 +371,15 @@ if __name__ == "__main__":
 Usage:
 Resume all three scenarios (recommended):
 
-python resume_training.py --episodes 48
+python rtrain_cyber_resume.py --episodes 48
 
 Resume only resilient:
 
-python resume_training.py --episodes 48 --scenarios resilient
+python train_cyber_resume.py --episodes 48 --scenarios resilient
 
 Resume baseline and degraded only:
 
-python resume_training.py --episodes 48 --scenarios baseline degraded
-
+python train_cyber_resume.py --episodes 48 --scenarios baseline degraded
 '''
 
 
