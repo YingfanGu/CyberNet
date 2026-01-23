@@ -47,6 +47,8 @@ EPISODE_WEIGHTS_DIRS = {
     "baseline": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_baseline_naive_ranked",
     "degraded": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_degraded_naive",
     "resilient": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_resilient_trust_ranked",
+    "multiagent": "out/SMARTCOMP/weight_episode/MultiAgent/grid-3x3/Cyberattack_3x3_resilience_multiagent",
+    "singleagent": "out/SMARTCOMP/weight_episode/SingleAgent/grid-3x3/Cyberattack_3x3_resilience_singleagent",
 }
 
 

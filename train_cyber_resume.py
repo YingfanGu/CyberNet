@@ -274,6 +274,76 @@ def resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint):
     trainer.train(n_episodes, checkpoint=checkpoint_dir)
 
 
+def resume_MultiPolicyTrainer(net_file, ranked, n_episodes, checkpoint):
+    """Resume multi-agent RL training from checkpoint."""
+    logging.info("\n" + "="*80)
+    logging.info("RESUMING MULTI-AGENT RL SCENARIO TRAINING")
+    logging.info(f"Checkpoint: {checkpoint}")
+    logging.info(f"Additional episodes: {n_episodes}")
+    logging.info("="*80 + "\n")
+    
+    logging.info("Resuming MultiPolicyTrainer - MULTI-AGENT RL")
+    multiagent_prefix = f"{OUT_PREFIX}_multiagent_resume"
+    
+    class MultiAgentTrainer(MultiPolicyTrainer):
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            config["use_trust_scoring"] = False
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
+            return config
+    
+    trainer = MultiAgentTrainer(
+        net_file=net_file, ranked=ranked,
+        out_prefix=multiagent_prefix,
+        trainer_kwargs=trainer_kwargs,
+        checkpoint_freq=1,
+    )
+    
+    checkpoint_dir = checkpoint.replace("\\", "/")
+    trainer.train(n_episodes, checkpoint=checkpoint_dir)
+
+
+def resume_SinglePolicyTrainer(net_file, ranked, n_episodes, checkpoint):
+    """Resume single-agent RL training from checkpoint."""
+    logging.info("\n" + "="*80)
+    logging.info("RESUMING SINGLE-AGENT RL SCENARIO TRAINING")
+    logging.info(f"Checkpoint: {checkpoint}")
+    logging.info(f"Additional episodes: {n_episodes}")
+    logging.info("="*80 + "\n")
+    
+    logging.info("Resuming SinglePolicyTrainer - SINGLE-AGENT RL")
+    singleagent_prefix = f"{OUT_PREFIX}_singleagent_resume"
+    
+    class SingleAgentTrainer(SinglePolicyTrainer):
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            config["use_trust_scoring"] = False
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
+            return config
+    
+    trainer = SingleAgentTrainer(
+        net_file=net_file, ranked=ranked,
+        out_prefix=singleagent_prefix,
+        trainer_kwargs=trainer_kwargs,
+        checkpoint_freq=1,
+    )
+    
+    checkpoint_dir = checkpoint.replace("\\", "/")
+    trainer.train(n_episodes, checkpoint=checkpoint_dir)
+
+
 def main():
     # Save original argv before parsing
     original_argv = sys.argv.copy()
@@ -352,6 +422,23 @@ def main():
                     resume_resilient(net_file, ranked, n_episodes, fed_step, checkpoint)
                 else:
                     logging.error("Cannot resume resilient: no checkpoint found")
+            
+            # Optional: resume multi-agent and single-agent RL scenarios
+            # if "multiagent" in args.scenarios:
+            #     logging.info("\n4. Resuming MULTI-AGENT RL")
+            #     checkpoint = args.checkpoint if args.checkpoint else find_latest_checkpoint("multiagent")
+            #     if checkpoint:
+            #         resume_MultiPolicyTrainer(net_file, ranked, n_episodes, checkpoint)
+            #     else:
+            #         logging.error("Cannot resume multiagent: no checkpoint found")
+            #
+            # if "singleagent" in args.scenarios:
+            #     logging.info("\n5. Resuming SINGLE-AGENT RL")
+            #     checkpoint = args.checkpoint if args.checkpoint else find_latest_checkpoint("singleagent")
+            #     if checkpoint:
+            #         resume_SinglePolicyTrainer(net_file, ranked, n_episodes, checkpoint)
+            #     else:
+            #         logging.error("Cannot resume singleagent: no checkpoint found")
             
             logging.info(f"\nCompleted all scenarios for {intersection} (ranked={ranked})")
     

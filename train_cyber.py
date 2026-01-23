@@ -224,11 +224,11 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             # TRUST DEFENSE - enable trust scoring to detect anomalies
             config["use_trust_scoring"] = True
             config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            config["trust_window_size"] = 20
-            config["trust_spillback_threshold"] = 0.15
+            config["trust_window_size"] = 5  # Reduced from 20 to focus on recent behavior
+            config["trust_spillback_threshold"] = 0.25  # Relaxed from 0.15 to reduce false positives
             config["trust_phase_lock_threshold"] = 30
-            config["trust_ema_alpha"] = 0.1
-            config["trust_suspected_threshold"] = 0.5
+            config["trust_ema_alpha"] = 0.2  # Increased from 0.1 to reduce noise sensitivity
+            config["trust_suspected_threshold"] = 0.7  # Raised from 0.5 for higher confidence bar
             # Vehicle flow configuration
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
@@ -259,8 +259,142 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
     ).train(n_episodes)
 
 
+def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
+    """
+    Train using multi-agent RL (without federation).
+    Each agent learns independently with centralized policy updates.
+    
+    This is a comparison approach: multi-agent RL without federated aggregation.
+    
+    ✓ ATTACK ENABLED - cyberattack on B1 at step 120
+    ✓ Multi-agent RL - independent learning, no federation
+    """
+    logging.info("\n" + "="*80)
+    logging.info("MULTI-AGENT RL SCENARIO: Independent Agent Learning")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info("✓ ATTACK ENABLED during training")
+    logging.info("✓ Multi-agent RL: Independent learning (no federated aggregation)")
+    logging.info("="*80 + "\n")
+    
+    # Multi-agent RL: independent learning with attack
+    logging.info("Training MultiPolicyTrainer - MULTI-AGENT RL")
+    multiagent_prefix = f"{OUT_PREFIX}_multiagent"
+    
+    # Create custom trainer for multi-agent RL
+    class MultiAgentTrainer(MultiPolicyTrainer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set up directory for episode-specific weights
+            self.episode_weights_dir = os.path.join(
+                "out/SMARTCOMP/weight_episode/MultiAgent/grid-3x3",
+                self.out_prefix
+            )
+        
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            # ATTACK ENABLED - same attack as other scenarios
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            config["use_trust_scoring"] = False  # Not applicable for multi-agent
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
+            # Vehicle flow configuration
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
+            return config
+        
+        def save_test_policy(self):
+            # Call parent to save the main policy
+            weights = super().save_test_policy()
+            
+            # Also save episode-specific weights
+            os.makedirs(self.episode_weights_dir, exist_ok=True)
+            episode_file = os.path.join(self.episode_weights_dir, f"{self._round:06d}.pkl")
+            with open(episode_file, "wb") as f:
+                pickle.dump(weights, f)
+            logging.info(f"Saved episode weights: {episode_file}")
+            
+            return weights
+    
+    MultiAgentTrainer(
+        net_file=net_file, ranked=ranked,
+        out_prefix=multiagent_prefix,
+        trainer_kwargs=trainer_kwargs,
+        checkpoint_freq=1,  # Save checkpoint every episode
+    ).train(n_episodes)
+
+
+def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
+    """
+    Train using single-agent RL (centralized control).
+    One agent controls all traffic lights in the network.
+    
+    This is a comparison approach: single-agent RL without multi-agent federation.
+    
+    ✓ ATTACK ENABLED - cyberattack on B1 at step 120
+    ✓ Single-agent RL - centralized control, no federation
+    """
+    logging.info("\n" + "="*80)
+    logging.info("SINGLE-AGENT RL SCENARIO: Centralized Control")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info("✓ ATTACK ENABLED during training")
+    logging.info("✓ Single-agent RL: Centralized control (no multi-agent federation)")
+    logging.info("="*80 + "\n")
+    
+    # Single-agent RL: centralized control with attack
+    logging.info("Training SinglePolicyTrainer - SINGLE-AGENT RL")
+    singleagent_prefix = f"{OUT_PREFIX}_singleagent"
+    
+    # Create custom trainer for single-agent RL
+    class SingleAgentTrainer(SinglePolicyTrainer):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set up directory for episode-specific weights
+            self.episode_weights_dir = os.path.join(
+                "out/SMARTCOMP/weight_episode/SingleAgent/grid-3x3",
+                self.out_prefix
+            )
+        
+        def env_config_fn(self):
+            config = super().env_config_fn()
+            # ATTACK ENABLED - same attack as other scenarios
+            config["attack_timestep"] = ATTACK_TIMESTEP
+            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attack_type"] = ATTACK_TYPE
+            config["use_trust_scoring"] = False  # Not applicable for single-agent
+            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
+            # Vehicle flow configuration
+            config["rand_route_args"] = {
+                "vehicles_per_lane_per_hour": 150,
+                "seed": 42
+            }
+            return config
+        
+        def save_test_policy(self):
+            # Call parent to save the main policy
+            weights = super().save_test_policy()
+            
+            # Also save episode-specific weights
+            os.makedirs(self.episode_weights_dir, exist_ok=True)
+            episode_file = os.path.join(self.episode_weights_dir, f"{self._round:06d}.pkl")
+            with open(episode_file, "wb") as f:
+                pickle.dump(weights, f)
+            logging.info(f"Saved episode weights: {episode_file}")
+            
+            return weights
+    
+    SingleAgentTrainer(
+        net_file=net_file, ranked=ranked,
+        out_prefix=singleagent_prefix,
+        trainer_kwargs=trainer_kwargs,
+        checkpoint_freq=1,  # Save checkpoint every episode
+    ).train(n_episodes)
+
+
 if __name__ == "__main__":
-    n_episodes = 20 # Number of training episodes
+    n_episodes = 50 # Number of training episodes
     fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {
@@ -274,10 +408,12 @@ if __name__ == "__main__":
     
     logging.info("="*80)
     logging.info("CYBERATTACK RESILIENCE TRAINING")
-    logging.info("Comparing 3 Scenarios:")
-    logging.info("  1. BASELINE (naive): No attack, normal operation")
-    logging.info("  2. DEGRADED (naive): Attack + no defense (vulnerable)")
-    logging.info("  3. RESILIENT (trust): Attack + trust defense (protected)")
+    logging.info("Comparing Multiple Scenarios:")
+    logging.info("  1. BASELINE (FedRL naive): No attack, normal operation")
+    logging.info("  2. DEGRADED (FedRL naive): Attack + no defense (vulnerable)")
+    logging.info("  3. RESILIENT (FedRL trust): Attack + trust defense (protected)")
+    logging.info("  4. MULTI-AGENT RL: Independent agent learning with attack")
+    logging.info("  5. SINGLE-AGENT RL: Centralized control with attack")
     logging.info("="*80)
     
     # Run experiments for each network and ranking configuration
@@ -287,14 +423,22 @@ if __name__ == "__main__":
             logging.info(f"Network: {intersection}, Ranked: {ranked}")
             logging.info(f"{'='*80}")
             
+
+            
             # 1. BASELINE: Normal operation (control scenario)
-            # train_baseline(net_file, ranked, n_episodes, fed_step)
+            train_baseline(net_file, ranked, n_episodes, fed_step)
             
             # 2. DEGRADED: Attack without defense (vulnerability scenario)
-            # train_degraded(net_file, ranked, n_episodes, fed_step)
+            train_degraded(net_file, ranked, n_episodes, fed_step)
             
             # 3. RESILIENT: Attack with trust-based defense (resilience scenario)
             train_resilient(net_file, ranked, n_episodes, fed_step)
+            
+            # 4. MULTI-AGENT: Independent learning comparison
+            train_MultiPolicyTrainer(net_file, ranked, n_episodes)
+            
+            # 5. SINGLE-AGENT: Centralized control comparison
+            train_SinglePolicyTrainer(net_file, ranked, n_episodes)
             
             logging.info(f"\nCompleted all scenarios for {intersection} (ranked={ranked})")
     
