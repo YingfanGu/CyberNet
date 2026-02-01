@@ -61,13 +61,8 @@ trainer_kwargs = {
     # Gradient clipping - prevents extreme parameter updates
     "grad_clip": 0.5,
     
-    # LEARNING RATE - Lower rate with decay schedule for stability
+    # LEARNING RATE - Fixed rate for stability
     "lr": 0.0005,                   # Base learning rate (reduced from 0.001)
-    "lr_schedule": [
-        [0, 0.0005],        # Start: 0.0005
-        [200000, 0.00025],  # Mid: decay to 0.00025
-        [400000, 0.0001],   # Late: decay to 0.0001
-    ],
 }
 
 # Cyberattack parameters
