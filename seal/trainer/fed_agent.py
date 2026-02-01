@@ -64,6 +64,54 @@ class FedPolicyTrainer(BaseTrainer):
             trust_scores: Dict mapping policy_id to trust_score in [0,1]
         """
         self.trust_scores = trust_scores
+    
+    def _update_trust_scores_from_env(self) -> None:
+        """
+        Extract trust scores from the environment's trust scorer.
+        
+        This bridges the gap between the environment (which computes trust scores)
+        and the trainer (which uses them for weighted aggregation).
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Access the environment through the worker
+            worker = self.ray_trainer.workers.local_worker()
+            env = worker.env
+            
+            logger.info(f"[TRUST_SCORES] Attempting extraction at round {self._round}")
+            logger.info(f"[TRUST_SCORES] env has trust_scorer: {hasattr(env, 'trust_scorer')}")
+            
+            # Check if environment has trust scorer
+            if hasattr(env, 'trust_scorer') and env.trust_scorer is not None:
+                self.trust_scores = env.trust_scorer.trust_scores.copy()
+                logger.info(f"[TRUST_SCORES] SUCCESS - Extracted {len(self.trust_scores)} scores: {self.trust_scores}")
+                
+                # Log trust scores for debugging
+                suspected = [k for k, v in self.trust_scores.items() if v < 0.7]
+                if suspected:
+                    logger.warning(f"[TRUST_SCORES] Suspected compromised agents: {suspected}")
+            else:
+                logger.error(f"[TRUST_SCORES] FAILED - env.trust_scorer not available!")
+                # Fallback: try to get from last episode's custom metrics
+                if "sampler_results" in self._result:
+                    sampler = self._result["sampler_results"]
+                    if "custom_metrics" in sampler:
+                        # Extract trust scores from episode user_data if available
+                        pass  # Trust scores already set via callback
+        except Exception as e:
+            import logging
+            logging.error(f"[TRUST_SCORES] Exception during extraction: {e}", exc_info=True)
+
+    def env_config_fn(self) -> Dict[str, Any]:
+        """Override base env_config_fn to include trust scoring if needed."""
+        config = super().env_config_fn()
+        # Enable trust scoring if using trust-weighted aggregation
+        config["use_trust_scoring"] = self.use_trust_weighting
+        import logging
+        logging.info(f"[ENV_CONFIG] Setting use_trust_scoring={config['use_trust_scoring']}")
+        return config
 
     def on_make_final_policy(self) -> Weights:
         policy_dict = {policy_id: self.ray_trainer.get_policy(policy_id)
@@ -72,8 +120,21 @@ class FedPolicyTrainer(BaseTrainer):
         return self.fedavg(policy_dict)
 
     def on_data_recording_step(self) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Determine if aggregation is performed during this training iteration or not.
         aggregate_this_round = self._is_aggregating_step()
+        
+        logger.info(f"\n[ON_DATA_RECORDING] Round {self._round}, Aggregate={aggregate_this_round}, WeightFn={self.weight_fn}")
+        
+        # Extract trust scores from the environment if using trust-weighted aggregation
+        if self.use_trust_weighting:
+            logger.info(f"[ON_DATA_RECORDING] Updating trust scores (use_trust_weighting=True)")
+            self._update_trust_scores_from_env()
+            logger.info(f"[ON_DATA_RECORDING] After update: trust_scores={self.trust_scores}")
+        else:
+            logger.info(f"[ON_DATA_RECORDING] Skipping trust score update (use_trust_weighting=False)")
 
         # Record the data for training process evaluation.
         self.training_data["round"].append(self._round)
@@ -99,6 +160,7 @@ class FedPolicyTrainer(BaseTrainer):
 
         # Aggregate the weights via the Federated Averaging algorithm.
         if aggregate_this_round:
+            logger.info(f"[ON_DATA_RECORDING] Performing aggregation this round")
             policy_dict = {policy_id: self.ray_trainer.get_policy(policy_id)
                            for policy_id in self.policies
                            if policy_id != GLOBAL_POLICY_VAR}
@@ -170,16 +232,33 @@ class FedPolicyTrainer(BaseTrainer):
         # STEP 1: Grab the aggregation function specified at initialization.
         weight_fn_impl = WEIGHT_FUNCTIONS[self.weight_fn]
         
+        # DEBUGGING: Log trust weighting decision
+        import logging as py_logging
+        logger = py_logging.getLogger(__name__)
+        
+        logger.info(f"[FEDAVG] Round {self._round}: weight_fn='{self.weight_fn}'")
+        logger.info(f"[FEDAVG] trust_scores present: {bool(self.trust_scores)}")
+        if self.trust_scores:
+            logger.info(f"[FEDAVG] trust_scores: {self.trust_scores}")
+        
         # Special handling for trust-weighted aggregation
         if self.weight_fn == "trust" and self.trust_scores:
             # STEP 2a: Compute trust-weighted coefficients
+            logger.info(f"[FEDAVG] Using TRUST-WEIGHTED aggregation")
             coeffs = trust_weight_function(self.episode_data, self.trust_scores)
+            # Log the weights
+            for policy, weight in coeffs.items():
+                logger.info(f"[FEDAVG]   {policy}: {weight:.4f}")
         else:
             # STEP 2b: Compute coefficients using standard weight function
+            logger.warning(f"[FEDAVG] Using FALLBACK aggregation (trust_scores empty or weight_fn != 'trust')")
             if isinstance(weight_fn_impl, str):
                 # Handle string reference (shouldn't happen with current code)
                 weight_fn_impl = WEIGHT_FUNCTIONS.get(weight_fn_impl, pos_reward_weight_function)
             coeffs = weight_fn_impl(self.episode_data)
+            # Log the weights
+            for policy, weight in coeffs.items():
+                logger.info(f"[FEDAVG]   {policy}: {weight:.4f}")
 
         # STEP 3: Compute the reward-based averaged policy weights by weight key.
         new_params = {}

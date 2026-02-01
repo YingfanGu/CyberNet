@@ -30,17 +30,44 @@ trainer_kwargs = {
     # Non-Algorithm Trainer Arguments (i.e., not related to PPO). #
     # =========================================================== #
     "horizon": 360,  # 360 steps = 6 minutes (enough to show attack + defense),
-    # GPU disabled: overhead > benefit for small batches (SUMO is CPU bottleneck)
-    # "timesteps_per_iteration":  240,
-    # "batch_mode": "truncate_episodes",
-    # "rollout_fragment_length": 240,
-    # "train_batch_size": 240,
-    # "rand_routes_on_reset": False,  # ← Add this to use same routes every time
-
+    
     # ====================== #
     # PPO Trainer Arguments. #
     # ====================== #
-    # "sgd_minibatch_size": 30,
+    # === STABILITY IMPROVEMENTS === #
+    # These settings reduce oscillation and enable smooth convergence
+    
+    # Entropy regularization - reduces exploration noise after convergence
+    "entropy_coeff": 0.005,
+    
+    # Policy clip parameter - tighter clipping for smaller, more stable updates
+    # Default 0.3 too loose → causes oscillation. 0.15 = smoother
+    "clip_param": 0.15,
+    
+    # Value function clipping - prevents value estimate divergence
+    "vf_clip_param": 10.0,
+    
+    # Generalized Advantage Estimation - reduces variance in advantage estimates
+    # Crucial for stable training
+    "use_gae": True,
+    "lambda": 0.95,  # GAE lambda parameter
+    "gamma": 0.99,   # Discount factor
+    
+    # BATCH SIZE SETTINGS - Larger batches = smoother gradients (fixes oscillation)
+    "sgd_minibatch_size": 128,     # Inner training batch (was default ~32)
+    "num_sgd_iter": 20,             # Inner optimization iterations per update
+    "train_batch_size": 4000,       # Total batch size for gradient computation
+    
+    # Gradient clipping - prevents extreme parameter updates
+    "grad_clip": 0.5,
+    
+    # LEARNING RATE - Lower rate with decay schedule for stability
+    "lr": 0.0005,                   # Base learning rate (reduced from 0.001)
+    "lr_schedule": [
+        [0, 0.0005],        # Start: 0.0005
+        [200000, 0.00025],  # Mid: decay to 0.00025
+        [400000, 0.0001],   # Late: decay to 0.0001
+    ],
 }
 
 # Cyberattack parameters
@@ -224,11 +251,11 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             # TRUST DEFENSE - enable trust scoring to detect anomalies
             config["use_trust_scoring"] = True
             config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            config["trust_window_size"] = 5  # Reduced from 20 to focus on recent behavior
-            config["trust_spillback_threshold"] = 0.25  # Relaxed from 0.15 to reduce false positives
-            config["trust_phase_lock_threshold"] = 30
-            config["trust_ema_alpha"] = 0.2  # Increased from 0.1 to reduce noise sensitivity
-            config["trust_suspected_threshold"] = 0.7  # Raised from 0.5 for higher confidence bar
+            config["trust_window_size"] = 5  # Smaller window for faster anomaly detection
+            config["trust_spillback_threshold"] = 0.25  # Queue threshold for anomaly detection
+            config["trust_phase_lock_threshold"] = 30  # Phase lock detection threshold
+            config["trust_ema_alpha"] = 0.4  # Faster response to changes
+            config["trust_suspected_threshold"] = 0.5  # More aggressive detection threshold
             # Vehicle flow configuration
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
@@ -394,7 +421,7 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
 
 
 if __name__ == "__main__":
-    n_episodes = 50 # Number of training episodes
+    n_episodes = 30 # Number of training episodes
     fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {
@@ -428,16 +455,16 @@ if __name__ == "__main__":
             # 1. BASELINE: Normal operation (control scenario)
             train_baseline(net_file, ranked, n_episodes, fed_step)
             
-            # 2. DEGRADED: Attack without defense (vulnerability scenario)
+            # # 2. DEGRADED: Attack without defense (vulnerability scenario)
             train_degraded(net_file, ranked, n_episodes, fed_step)
             
             # 3. RESILIENT: Attack with trust-based defense (resilience scenario)
             train_resilient(net_file, ranked, n_episodes, fed_step)
             
-            # 4. MULTI-AGENT: Independent learning comparison
+            # # 4. MULTI-AGENT: Independent learning comparison
             train_MultiPolicyTrainer(net_file, ranked, n_episodes)
             
-            # 5. SINGLE-AGENT: Centralized control comparison
+            # # 5. SINGLE-AGENT: Centralized control comparison
             train_SinglePolicyTrainer(net_file, ranked, n_episodes)
             
             logging.info(f"\nCompleted all scenarios for {intersection} (ranked={ranked})")

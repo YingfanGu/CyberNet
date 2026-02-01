@@ -61,12 +61,18 @@ def traffic_weight_function(episode_data: Dict) -> Dict[str, float]:
 
 def trust_weight_function(episode_data: Dict, trust_scores: Dict[str, float]) -> Dict[str, float]:
     """
-    Trust-weighted aggregation: Combine reward-based weighting with trust scores.
+    Trust-weighted aggregation with QUADRATIC PENALTY: Combine reward-based weighting with squared trust scores.
+    
+    Uses trust_score^2 to more aggressively suppress oscillating/suspicious agents.
     
     Agents with lower trust scores (suspected compromised) get lower weights,
     while trusted agents get higher weights.
     
-    Weight formula: w[agent] = (reward[agent] * trust_score[agent]) / sum(...)
+    Weight formula: w[agent] = (reward[agent] * trust_score[agent]^2) / sum(...)
+    
+    Examples:
+    - Agent with trust=0.7: weight_multiplier = 0.7^2 = 0.49 (aggressive downweighting)
+    - Agent with trust=1.0: weight_multiplier = 1.0^2 = 1.0 (unaffected)
     
     Args:
         episode_data: Dict with episode statistics {policy_id: {reward, num_vehicles, ...}}
@@ -88,12 +94,14 @@ def trust_weight_function(episode_data: Dict, trust_scores: Dict[str, float]) ->
     except ZeroDivisionError:
         reward_weights = naive_weight_function(episode_data)
     
-    # Then modulate by trust score
+    # Then modulate by trust score (using quadratic penalty for suspicious agents)
     trust_adjusted = {}
     for policy in episode_data:
         trust_score = trust_scores.get(policy, 1.0)  # Default to full trust if not provided
-        # Combine: higher reward AND higher trust = higher weight
-        trust_adjusted[policy] = reward_weights[policy] * trust_score
+        # Quadratic penalty: trust_score^2 amplifies downweighting of low-trust agents
+        # Example: trust=0.7 → weight_multiplier=0.49 (much more aggressive than 0.7)
+        # Good agents at 1.0 → multiplier=1.0 (unaffected)
+        trust_adjusted[policy] = reward_weights[policy] * (trust_score ** 2)
     
     # Normalize
     total_weight = sum(trust_adjusted.values())
