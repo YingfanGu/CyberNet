@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-base_path = r'F:\Research\networkCA\2026\CyberNet\out\0127\SMARTCOMP\data'
+base_path = r'F:\Research\networkCA\2026\CyberNet\out\SMARTCOMP\data'
 
 files = {
     'Baseline (No Attack)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_baseline_naive_ranked.csv',
@@ -88,7 +88,7 @@ for bar, val in zip(bars, degradation.values()):
              f'{val:.1f}%', ha='center', va='bottom', fontsize=10)
 
 plt.tight_layout()
-plt.savefig(r'F:\Research\networkCA\2026\CyberNet\out\0127\SMARTCOMP\training_analysis_50ep.png', dpi=150, bbox_inches='tight')
+plt.savefig(r'F:\Research\networkCA\2026\CyberNet\out\SMARTCOMP\training_analysis_50ep.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 print("Figure saved to: out/0127/SMARTCOMP/training_analysis_50ep.png")

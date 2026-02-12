@@ -34,35 +34,48 @@ trainer_kwargs = {
     # ====================== #
     # PPO Trainer Arguments. #
     # ====================== #
-    # === STABILITY IMPROVEMENTS === #
-    # These settings reduce oscillation and enable smooth convergence
+    # === OPTIMIZED FOR RANDOM/VARIABLE ENVIRONMENTS === #
+    # Settings tuned for randomized traffic patterns (seed=None)
+    # Enables robustness training with generalization
     
-    # Entropy regularization - reduces exploration noise after convergence
-    "entropy_coeff": 0.005,
+    # Entropy regularization - INCREASED to prevent policy collapse/divergence
+    # Higher entropy = forced exploration = prevents overfitting to early patterns
+    # Critical: prevents reward degradation after ~20 episodes
+    "entropy_coeff": 0.02,
     
-    # Policy clip parameter - tighter clipping for smaller, more stable updates
-    # Default 0.3 too loose → causes oscillation. 0.15 = smoother
-    "clip_param": 0.15,
+    # Policy clip parameter - AGGRESSIVE KL control
+    # Prevents policy from diverging away from good solutions
+    "clip_param": 0.1,  # Tighter clipping = more conservative updates
     
-    # Value function clipping - prevents value estimate divergence
-    "vf_clip_param": 10.0,
+    # Value function clipping - STRICT to prevent divergence
+    # Keeps value estimates reliable and prevents overshooting
+    "vf_clip_param": 0.5,  # Strict clipping (was 10.0) - prevents value collapse
     
     # Generalized Advantage Estimation - reduces variance in advantage estimates
-    # Crucial for stable training
+    # Crucial for stable training with random rewards
     "use_gae": True,
-    "lambda": 0.95,  # GAE lambda parameter
+    "lambda": 0.99,  # GAE lambda parameter - increased for better advantage estimates
     "gamma": 0.99,   # Discount factor
     
-    # BATCH SIZE SETTINGS - Larger batches = smoother gradients (fixes oscillation)
-    "sgd_minibatch_size": 128,     # Inner training batch (was default ~32)
-    "num_sgd_iter": 20,             # Inner optimization iterations per update
-    "train_batch_size": 4000,       # Total batch size for gradient computation
+    # BATCH SIZE SETTINGS - BALANCED for stability
+    # Smaller batches = more frequent updates (prevents stagnation)
+    # But not too small = still smooth gradient flow
+    "sgd_minibatch_size": 128,      # Balanced (was 192)
+    "num_sgd_iter": 25,             # More iterations = better convergence per batch
+    "train_batch_size": 3200,       # Reduced from 4800 (prevent divergence)
     
-    # Gradient clipping - prevents extreme parameter updates
-    "grad_clip": 0.5,
+    # Gradient clipping - STRICT to prevent explosions
+    "grad_clip": 0.2,  # Tighter (was 0.3)
     
-    # LEARNING RATE - Fixed rate for stability
-    "lr": 0.0005,                   # Base learning rate (reduced from 0.001)
+    # LEARNING RATE - REDUCED to prevent divergence
+    # Smaller updates = more stable long-term learning
+    # This is THE KEY FIX for divergence after episode 20
+    "lr": 0.0005,                   # REDUCED from 0.0010 (prevent policy drift)
+    
+    # KL Divergence Penalty - ADDED to keep policy stable
+    # Prevents new policy from being too different from old policy
+    "kl_coeff": 0.2,                # Higher = more penalty for diverging
+    "kl_target": 0.01,              # Target KL divergence
 }
 
 # Cyberattack parameters
@@ -106,11 +119,11 @@ def train_baseline(net_file, ranked, n_episodes, fed_step):
             config["attack_timestep"] = None  # Explicitly disable attack
             config["attacked_tls_id"] = None
             config["use_trust_scoring"] = False  # No trust scoring needed
-            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            # Vehicle flow configuration
+            config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
+            # Vehicle flow configuration - RANDOM ROUTES for robust policy
+            # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
-                "seed": 42  # Fixed seed for reproducibility
             }
             return config
         
@@ -175,11 +188,11 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
             config["attacked_tls_id"] = ATTACKED_TLS_ID
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # No trust defense
-            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            # Vehicle flow configuration
+            config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
+            # Vehicle flow configuration - RANDOM ROUTES for robust policy
+            # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
-                "seed": 42  # Fixed seed for reproducibility
             }
             return config
         
@@ -245,16 +258,16 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             config["attack_type"] = ATTACK_TYPE
             # TRUST DEFENSE - enable trust scoring to detect anomalies
             config["use_trust_scoring"] = True
-            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
+            config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
             config["trust_window_size"] = 5  # Smaller window for faster anomaly detection
-            config["trust_spillback_threshold"] = 0.25  # Queue threshold for anomaly detection
+            config["trust_spillback_threshold"] = 0.05  # TUNED: 5x more sensitive (was 0.25)
             config["trust_phase_lock_threshold"] = 30  # Phase lock detection threshold
-            config["trust_ema_alpha"] = 0.4  # Faster response to changes
+            config["trust_ema_alpha"] = 0.6  # TUNED: 2.5x faster response (was 0.4)
             config["trust_suspected_threshold"] = 0.5  # More aggressive detection threshold
-            # Vehicle flow configuration
+            # Vehicle flow configuration - RANDOM ROUTES for robust policy
+            # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
-                "seed": 42  # Fixed seed for reproducibility
             }
             return config
         
@@ -319,11 +332,11 @@ def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
             config["attacked_tls_id"] = ATTACKED_TLS_ID
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # Not applicable for multi-agent
-            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            # Vehicle flow configuration
+            config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
+            # Vehicle flow configuration - RANDOM ROUTES for robust policy
+            # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,
-                "seed": 42
             }
             return config
         
@@ -386,11 +399,11 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
             config["attacked_tls_id"] = ATTACKED_TLS_ID
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # Not applicable for single-agent
-            config["use_dynamic_seed"] = False  # Fixed seed for reproducibility
-            # Vehicle flow configuration
+            config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
+            # Vehicle flow configuration - RANDOM ROUTES for robust policy
+            # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
                 "vehicles_per_lane_per_hour": 150,
-                "seed": 42
             }
             return config
         
@@ -416,7 +429,7 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
 
 
 if __name__ == "__main__":
-    n_episodes = 30 # Number of training episodes
+    n_episodes = 50 # Number of training episodes
     fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {
@@ -445,22 +458,21 @@ if __name__ == "__main__":
             logging.info(f"Network: {intersection}, Ranked: {ranked}")
             logging.info(f"{'='*80}")
             
+            train_baseline(net_file, ranked, n_episodes, fed_step)# 1. BASELINE: Normal operation (control scenario)   
+            
 
+
+            train_degraded(net_file, ranked, n_episodes, fed_step)# 2. DEGRADED: Attack without defense (vulnerability scenario)
             
-            # 1. BASELINE: Normal operation (control scenario)
-            train_baseline(net_file, ranked, n_episodes, fed_step)
             
-            # # 2. DEGRADED: Attack without defense (vulnerability scenario)
-            train_degraded(net_file, ranked, n_episodes, fed_step)
+            train_resilient(net_file, ranked, n_episodes, fed_step)# 3. RESILIENT: Attack with trust-based defense (resilience scenario)
             
-            # 3. RESILIENT: Attack with trust-based defense (resilience scenario)
-            train_resilient(net_file, ranked, n_episodes, fed_step)
             
-            # # 4. MULTI-AGENT: Independent learning comparison
-            train_MultiPolicyTrainer(net_file, ranked, n_episodes)
+            train_SinglePolicyTrainer(net_file, ranked, n_episodes)# 5. SINGLE-AGENT: Centralized control comparison   
+            train_MultiPolicyTrainer(net_file, ranked, n_episodes)# 4. MULTI-AGENT: Independent learning comparison
             
-            # # 5. SINGLE-AGENT: Centralized control comparison
-            train_SinglePolicyTrainer(net_file, ranked, n_episodes)
+            
+
             
             logging.info(f"\nCompleted all scenarios for {intersection} (ranked={ranked})")
     

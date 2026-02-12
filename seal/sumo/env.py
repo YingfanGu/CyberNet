@@ -95,6 +95,12 @@ class SumoEnv(AbstractSumoEnv):
             occupancies = {tls.id: obs[tls.id][0] for tls in self.kernel.tls_hub}
             phases = {tls.id: tls.state for tls in self.kernel.tls_hub}
             self.trust_scorer.update(occupancies, phases)
+            
+            # DEBUG: Log trust scores every 20 steps after attack starts
+            if self.step_counter % 20 == 0 and self.step_counter > 120:
+                import logging as py_logging
+                logger = py_logging.getLogger(__name__)
+                logger.info(f"[TRUST_SCORES_DEBUG] Step {self.step_counter}: {self.trust_scorer.trust_scores}")
         
         info = {tls.id: {"is_ranked": self.ranked,
                          "veh2tls_comms": tls.get_num_of_controlled_vehicles(),

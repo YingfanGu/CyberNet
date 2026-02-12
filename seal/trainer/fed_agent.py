@@ -246,6 +246,17 @@ class FedPolicyTrainer(BaseTrainer):
             # STEP 2a: Compute trust-weighted coefficients
             logger.info(f"[FEDAVG] Using TRUST-WEIGHTED aggregation")
             coeffs = trust_weight_function(self.episode_data, self.trust_scores)
+            
+            # DETAILED LOGGING: Show trust scores, rewards, and weights for each agent
+            logger.info(f"\n[FEDAVG_DETAIL] Round {self._round} - Trust-Weighted Aggregation Details:")
+            for policy in self.episode_data.keys():
+                reward = self.episode_data[policy].get("reward", 0)
+                trust = self.trust_scores.get(policy, 1.0)
+                weight = coeffs.get(policy, 0.0)
+                multiplier = trust ** 2
+                logger.info(f"[FEDAVG_DETAIL]   {policy}: reward={reward:7.2f}, trust={trust:.3f}, "
+                           f"multiplier={multiplier:.4f}, weight={weight:.4f}")
+            
             # Log the weights
             for policy, weight in coeffs.items():
                 logger.info(f"[FEDAVG]   {policy}: {weight:.4f}")
