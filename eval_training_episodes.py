@@ -39,16 +39,16 @@ os.environ['PYTHONHASHSEED'] = '42'
 # Configuration
 HORIZON = 360
 ATTACK_TIMESTEP = 120
-ATTACKED_TLS_ID = "B1"
+ATTACKED_TLS_ID = "C2"
 ATTACK_TYPE = "all_red"
 
 # Per-episode weights directory paths
 EPISODE_WEIGHTS_DIRS = {
-    "baseline": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_baseline_naive_ranked",
-    "degraded": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_degraded_naive",
-    "resilient": "out/SMARTCOMP/weight_episode/FedRL/grid-3x3/Cyberattack_3x3_resilience_resilient_trust_ranked",
-    "multiagent": "out/SMARTCOMP/weight_episode/MultiAgent/grid-3x3/Cyberattack_3x3_resilience_multiagent",
-    "singleagent": "out/SMARTCOMP/weight_episode/SingleAgent/grid-3x3/Cyberattack_3x3_resilience_singleagent",
+    "baseline": "out/SMARTCOMP/weight_episode/FedRL/grid-5x5/Cyberattack_5x5_resilience_baseline_naive_ranked",
+    "degraded": "out/SMARTCOMP/weight_episode/FedRL/grid-5x5/Cyberattack_5x5_resilience_degraded_naive",
+    "resilient": "out/SMARTCOMP/weight_episode/FedRL/grid-5x5/Cyberattack_5x5_resilience_resilient_trust_ranked",
+    "multiagent": "out/SMARTCOMP/weight_episode/MultiAgent/grid-5x5/Cyberattack_5x5_resilience_multiagent",
+    "singleagent": "out/SMARTCOMP/weight_episode/SingleAgent/grid-5x5/Cyberattack_5x5_resilience_singleagent",
 }
 
 

@@ -4,11 +4,11 @@ import numpy as np
 base_path = r'F:\Research\networkCA\2026\CyberNet\out\0127\SMARTCOMP\data'
 
 files = {
-    'Baseline (No Attack)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_baseline_naive_ranked.csv',
-    'Degraded (Attack, Naive)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_degraded_naive_ranked.csv',
-    'Resilient (Attack, Trust)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_resilient_trust_ranked.csv',
-    'MARL (Multi-Agent)': f'{base_path}/MARL/grid-3x3/Cyberattack_3x3_resilience_multiagent_ranked.csv',
-    'SARL (Single-Agent)': f'{base_path}/SARL/grid-3x3/Cyberattack_3x3_resilience_singleagent_ranked.csv'
+    'Baseline (No Attack)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_baseline_naive_ranked.csv',
+    'Degraded (Attack, Naive)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_degraded_naive_ranked.csv',
+    'Resilient (Attack, Trust)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_resilient_trust_ranked.csv',
+    'MARL (Multi-Agent)': f'{base_path}/MultiAgent/grid-5x5/Cyberattack_5x5_resilience_multiagent_ranked.csv',
+    'SARL (Single-Agent)': f'{base_path}/SingleAgent/grid-5x5/Cyberattack_5x5_resilience_singleagent_ranked.csv'
 }
 
 print('=' * 80)

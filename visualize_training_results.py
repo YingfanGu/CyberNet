@@ -5,11 +5,11 @@ import numpy as np
 base_path = r'F:\Research\networkCA\2026\CyberNet\out\SMARTCOMP\data'
 
 files = {
-    'Baseline (No Attack)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_baseline_naive_ranked.csv',
-    'Degraded (Attack, Naive)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_degraded_naive_ranked.csv',
-    'Resilient (Attack, Trust)': f'{base_path}/FedRL/grid-3x3/Cyberattack_3x3_resilience_resilient_trust_ranked.csv',
-    'MARL (Multi-Agent)': f'{base_path}/MARL/grid-3x3/Cyberattack_3x3_resilience_multiagent_ranked.csv',
-    'SARL (Single-Agent)': f'{base_path}/SARL/grid-3x3/Cyberattack_3x3_resilience_singleagent_ranked.csv'
+    'Baseline (No Attack)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_baseline_naive_ranked.csv',
+    'Degraded (Attack, Naive)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_degraded_naive_ranked.csv',
+    'Resilient (Attack, Trust)': f'{base_path}/FedRL/grid-5x5/Cyberattack_5x5_resilience_resilient_trust_ranked.csv',
+    'MARL (Multi-Agent)': f'{base_path}/MARL/grid-5x5/Cyberattack_5x5_resilience_multiagent_ranked.csv',
+    'SARL (Single-Agent)': f'{base_path}/SARL/grid-5x5/Cyberattack_5x5_resilience_singleagent_ranked.csv'
 }
 
 colors = {
@@ -36,7 +36,10 @@ ax1.set_ylabel('Episode Reward Mean')
 ax1.set_title('Learning Curves - All Scenarios')
 ax1.legend(loc='best', fontsize=8)
 ax1.grid(True, alpha=0.3)
-ax1.axhline(y=-650.70, color='gray', linestyle='--', alpha=0.5, label='Baseline Final')
+#ax1.axhline(y=-650.70, color='gray', linestyle='--', alpha=0.5, label='Baseline Final')
+
+ax1.axhline(y=-3000, color='gray', linestyle='--', alpha=0.5, label='Baseline Final')
+
 
 # Plot 2: FedRL Comparison (Baseline vs Degraded vs Resilient)
 ax2 = axes[0, 1]

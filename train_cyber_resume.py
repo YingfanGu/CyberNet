@@ -28,7 +28,7 @@ os.environ['RAY_DISABLE_MEMORY_MONITOR'] = '1'
 # os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
 
 # Cyberattack scenarios
-OUT_PREFIX = "Cyberattack_3x3_resilience"
+OUT_PREFIX = "Cyberattack_5x5_resilience"
 random_routes_config = {}
 trainer_kwargs = {
     "horizon": 360,  # 360 steps = 6 minutes
@@ -45,7 +45,7 @@ trainer_kwargs = {
 
 # Cyberattack parameters
 ATTACK_TIMESTEP = 120  # Attack after 2 minutes (step 120)
-ATTACKED_TLS_ID = "B1"  # Center intersection in 3x3 grid
+ATTACKED_TLS_ID = "C2"  # Center intersection in 5x5 grid
 ATTACK_TYPE = "all_red"  # All-red phase lock attack
 
 
@@ -60,7 +60,7 @@ def find_latest_checkpoint(scenario_name):
     Returns:
         Path to latest checkpoint, or None if not found
     """
-    base_checkpoint_dir = f"out/SMARTCOMP/checkpoints/FedRL/grid-3x3"
+    base_checkpoint_dir = f"out/SMARTCOMP/checkpoints/FedRL/grid-5x5"
     
     if not os.path.exists(base_checkpoint_dir):
         logging.warning(f"Checkpoint directory not found: {base_checkpoint_dir}")

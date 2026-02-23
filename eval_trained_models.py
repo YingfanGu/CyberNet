@@ -36,26 +36,26 @@ ATTACKED_TLS_ID = "B1"
 ATTACK_TYPE = "all_red"
 
 # Trained model paths
-WEIGHTS_DIR = Path("out/SMARTCOMP/weights/FedRL/grid-3x3")
+WEIGHTS_DIR = Path("out/SMARTCOMP/weights/FedRL/grid-5x5")
 
 SCENARIOS = {
-    # "baseline_pos_reward": "Cyberattack_3x3_resilience_baseline_pos-reward_ranked.pkl",
-    "baseline_naive": "Cyberattack_3x3_resilience_baseline_naive_ranked.pkl",
-    # "degraded_pos_reward": "Cyberattack_3x3_resilience_degraded_pos-reward_ranked.pkl",
-    "degraded_naive": "Cyberattack_3x3_resilience_degraded_naive_ranked.pkl",
-    "resilient_trust": "Cyberattack_3x3_resilience_resilient_trust_ranked.pkl",
+    # "baseline_pos_reward": "Cyberattack_5x5_resilience_baseline_pos-reward_ranked.pkl",
+    "baseline_naive": "Cyberattack_5x5_resilience_baseline_naive_ranked.pkl",
+    # "degraded_pos_reward": "Cyberattack_5x5_resilience_degraded_pos-reward_ranked.pkl",
+    "degraded_naive": "Cyberattack_5x5_resilience_degraded_naive_ranked.pkl",
+    "resilient_trust": "Cyberattack_5x5_resilience_resilient_trust_ranked.pkl",
 }
 
 # Multi-agent and single-agent model paths
-MULTIAGENT_WEIGHTS_DIR = Path("out/SMARTCOMP/weights/MultiAgent/grid-3x3")
-SINGLEAGENT_WEIGHTS_DIR = Path("out/SMARTCOMP/weights/SingleAgent/grid-3x3")
+MULTIAGENT_WEIGHTS_DIR = Path("out/SMARTCOMP/weights/MultiAgent/grid-5x5")
+SINGLEAGENT_WEIGHTS_DIR = Path("out/SMARTCOMP/weights/SingleAgent/grid-5x5")
 
 MULTIAGENT_SCENARIOS = {
-    "multiagent": "Cyberattack_3x3_resilience_multiagent_ranked.pkl",
+    "multiagent": "Cyberattack_5x5_resilience_multiagent_ranked.pkl",
 }
 
 SINGLEAGENT_SCENARIOS = {
-    "singleagent": "Cyberattack_3x3_resilience_singleagent_ranked.pkl",
+    "singleagent": "Cyberattack_5x5_resilience_singleagent_ranked.pkl",
 }
 
 

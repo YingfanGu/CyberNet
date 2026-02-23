@@ -23,13 +23,13 @@ from os.path import join
 # os.environ['SUMO_HOME'] = r'C:\Program Files (x86)\Eclipse\Sumo'
 
 # Cyberattack scenarios
-OUT_PREFIX = "Cyberattack_3x3_resilience"
+OUT_PREFIX = "Cyberattack_5x5_resilience"
 random_routes_config = {}
 trainer_kwargs = {
     # =========================================================== #
     # Non-Algorithm Trainer Arguments (i.e., not related to PPO). #
     # =========================================================== #
-    "horizon": 360,  # 360 steps = 6 minutes (enough to show attack + defense),
+    "horizon": 600,  # 360 steps = 6 minutes (enough to show attack + defense),   360 for 3*3
     
     # ====================== #
     # PPO Trainer Arguments. #
@@ -80,8 +80,9 @@ trainer_kwargs = {
 
 # Cyberattack parameters
 ATTACK_TIMESTEP = 120  # Attack after 2 minutes (step 120)
-ATTACKED_TLS_ID = "B1"  # Center intersection in 3x3 grid
+ATTACKED_TLS_ID = "C2"  # Center intersection in 5x5 grid
 ATTACK_TYPE = "all_red"  # All-red phase lock attack
+VEHICLES_PER_LANE_PER_HOUR = 250  # Vehicle flow for 5x5 grid
 
 
 def train_baseline(net_file, ranked, n_episodes, fed_step):
@@ -109,7 +110,7 @@ def train_baseline(net_file, ranked, n_episodes, fed_step):
             super().__init__(*args, **kwargs)
             # Set up directory for episode-specific weights
             self.episode_weights_dir = os.path.join(
-                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                "out/SMARTCOMP/weight_episode/FedRL/grid-5x5",
                 self.out_prefix
             )
         
@@ -123,7 +124,7 @@ def train_baseline(net_file, ranked, n_episodes, fed_step):
             # Vehicle flow configuration - RANDOM ROUTES for robust policy
             # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "vehicles_per_lane_per_hour": VEHICLES_PER_LANE_PER_HOUR,  # Reduced from 360 for better training
             }
             return config
         
@@ -177,7 +178,7 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
             super().__init__(*args, **kwargs)
             # Set up directory for episode-specific weights
             self.episode_weights_dir = os.path.join(
-                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                "out/SMARTCOMP/weight_episode/FedRL/grid-5x5",
                 self.out_prefix
             )
         
@@ -192,7 +193,7 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
             # Vehicle flow configuration - RANDOM ROUTES for robust policy
             # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "vehicles_per_lane_per_hour": VEHICLES_PER_LANE_PER_HOUR,  # Reduced from 360 for better training
             }
             return config
         
@@ -246,7 +247,7 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             super().__init__(*args, **kwargs)
             # Set up directory for episode-specific weights
             self.episode_weights_dir = os.path.join(
-                "out/SMARTCOMP/weight_episode/FedRL/grid-3x3",
+                "out/SMARTCOMP/weight_episode/FedRL/grid-5x5",
                 self.out_prefix
             )
         
@@ -267,7 +268,7 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
             # Vehicle flow configuration - RANDOM ROUTES for robust policy
             # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150,  # Reduced from 360 for better training
+                "vehicles_per_lane_per_hour": VEHICLES_PER_LANE_PER_HOUR,  # Reduced from 360 for better training
             }
             return config
         
@@ -321,7 +322,7 @@ def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
             super().__init__(*args, **kwargs)
             # Set up directory for episode-specific weights
             self.episode_weights_dir = os.path.join(
-                "out/SMARTCOMP/weight_episode/MultiAgent/grid-3x3",
+                "out/SMARTCOMP/weight_episode/MultiAgent/grid-5x5",
                 self.out_prefix
             )
         
@@ -336,7 +337,7 @@ def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
             # Vehicle flow configuration - RANDOM ROUTES for robust policy
             # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150,
+                "vehicles_per_lane_per_hour": VEHICLES_PER_LANE_PER_HOUR,
             }
             return config
         
@@ -388,7 +389,7 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
             super().__init__(*args, **kwargs)
             # Set up directory for episode-specific weights
             self.episode_weights_dir = os.path.join(
-                "out/SMARTCOMP/weight_episode/SingleAgent/grid-3x3",
+                "out/SMARTCOMP/weight_episode/SingleAgent/grid-5x5",
                 self.out_prefix
             )
         
@@ -403,7 +404,7 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
             # Vehicle flow configuration - RANDOM ROUTES for robust policy
             # Don't set seed key - will use DEFAULT_SEED and increment each episode
             config["rand_route_args"] = {
-                "vehicles_per_lane_per_hour": 150,
+                "vehicles_per_lane_per_hour": VEHICLES_PER_LANE_PER_HOUR,
             }
             return config
         
@@ -433,9 +434,9 @@ if __name__ == "__main__":
     fed_step = 1    # Aggregation frequency (every step)
     
     NET_FILES = {
-        "grid_3x3": GRID_3x3,
+        "grid_5x5": GRID_5x5,
         # Uncomment to test on larger networks
-        # "grid_5x5": GRID_5x5,
+        # "grid_3x3": GRID_3x3,
         # "grid_7x7": GRID_7x7
     }
     
