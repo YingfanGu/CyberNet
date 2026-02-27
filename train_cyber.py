@@ -80,7 +80,7 @@ trainer_kwargs = {
 
 # Cyberattack parameters
 ATTACK_TIMESTEP = 120  # Attack after 2 minutes (step 120)
-ATTACKED_TLS_ID = "C2"  # Center intersection in 5x5 grid
+ATTACKED_TLS_IDS = ["C2", "B2", "D2", "C1", "C3"]  # Center cross: 5 intersections (20% compromised)
 ATTACK_TYPE = "all_red"  # All-red phase lock attack
 VEHICLES_PER_LANE_PER_HOUR = 250  # Vehicle flow for 5x5 grid
 
@@ -163,7 +163,8 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
     """
     logging.info("\n" + "="*80)
     logging.info("DEGRADED SCENARIO: Cyberattack Without Defense")
-    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_IDS} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Compromised Intersections: {len(ATTACKED_TLS_IDS)}/25 (20%)")
     logging.info("✓ ATTACK ENABLED during training")
     logging.info("✓ No defense: naive aggregation (vulnerable to attack)")
     logging.info("="*80 + "\n")
@@ -184,9 +185,9 @@ def train_degraded(net_file, ranked, n_episodes, fed_step):
         
         def env_config_fn(self):
             config = super().env_config_fn()
-            # ATTACK ENABLED - cyberattack on B1 at step 120
+            # ATTACK ENABLED - cyberattack on multiple intersections
             config["attack_timestep"] = ATTACK_TIMESTEP
-            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attacked_tls_id"] = ATTACKED_TLS_IDS  # Pass list of attacked intersections
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # No trust defense
             config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
@@ -232,7 +233,8 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
     """
     logging.info("\n" + "="*80)
     logging.info("RESILIENT SCENARIO: Cyberattack WITH Trust-Based Defense")
-    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_IDS} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Compromised Intersections: {len(ATTACKED_TLS_IDS)}/25 (20%)")
     logging.info("✓ ATTACK ENABLED during training")
     logging.info("✓ Defense: Trust-weighted federated aggregation (detects & downweights malicious agents)")
     logging.info("="*80 + "\n")
@@ -253,9 +255,9 @@ def train_resilient(net_file, ranked, n_episodes, fed_step):
         
         def env_config_fn(self):
             config = super().env_config_fn()
-            # ATTACK ENABLED - same attack as degraded scenario
+            # ATTACK ENABLED - same attack as degraded scenario (multiple intersections)
             config["attack_timestep"] = ATTACK_TIMESTEP
-            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attacked_tls_id"] = ATTACKED_TLS_IDS  # Pass list of attacked intersections
             config["attack_type"] = ATTACK_TYPE
             # TRUST DEFENSE - enable trust scoring to detect anomalies
             config["use_trust_scoring"] = True
@@ -307,7 +309,8 @@ def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
     """
     logging.info("\n" + "="*80)
     logging.info("MULTI-AGENT RL SCENARIO: Independent Agent Learning")
-    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_IDS} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Compromised Intersections: {len(ATTACKED_TLS_IDS)}/25 (20%)")
     logging.info("✓ ATTACK ENABLED during training")
     logging.info("✓ Multi-agent RL: Independent learning (no federated aggregation)")
     logging.info("="*80 + "\n")
@@ -330,7 +333,7 @@ def train_MultiPolicyTrainer(net_file, ranked, n_episodes):
             config = super().env_config_fn()
             # ATTACK ENABLED - same attack as other scenarios
             config["attack_timestep"] = ATTACK_TIMESTEP
-            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attacked_tls_id"] = ATTACKED_TLS_IDS  # Pass list of attacked intersections
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # Not applicable for multi-agent
             config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
@@ -374,7 +377,8 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
     """
     logging.info("\n" + "="*80)
     logging.info("SINGLE-AGENT RL SCENARIO: Centralized Control")
-    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_ID} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Attack Config: {ATTACK_TYPE} on {ATTACKED_TLS_IDS} at step {ATTACK_TIMESTEP}")
+    logging.info(f"Compromised Intersections: {len(ATTACKED_TLS_IDS)}/25 (20%)")
     logging.info("✓ ATTACK ENABLED during training")
     logging.info("✓ Single-agent RL: Centralized control (no multi-agent federation)")
     logging.info("="*80 + "\n")
@@ -397,7 +401,7 @@ def train_SinglePolicyTrainer(net_file, ranked, n_episodes):
             config = super().env_config_fn()
             # ATTACK ENABLED - same attack as other scenarios
             config["attack_timestep"] = ATTACK_TIMESTEP
-            config["attacked_tls_id"] = ATTACKED_TLS_ID
+            config["attacked_tls_id"] = ATTACKED_TLS_IDS  # Pass list of attacked intersections
             config["attack_type"] = ATTACK_TYPE
             config["use_trust_scoring"] = False  # Not applicable for single-agent
             config["use_dynamic_seed"] = True  # Enable dynamic seed for random routes each episode
@@ -459,7 +463,7 @@ if __name__ == "__main__":
             logging.info(f"Network: {intersection}, Ranked: {ranked}")
             logging.info(f"{'='*80}")
             
-            train_baseline(net_file, ranked, n_episodes, fed_step)# 1. BASELINE: Normal operation (control scenario)   
+            # train_baseline(net_file, ranked, n_episodes, fed_step)# 1. BASELINE: Normal operation (control scenario)   
             
 
 
@@ -469,8 +473,8 @@ if __name__ == "__main__":
             train_resilient(net_file, ranked, n_episodes, fed_step)# 3. RESILIENT: Attack with trust-based defense (resilience scenario)
             
             
-            train_SinglePolicyTrainer(net_file, ranked, n_episodes)# 5. SINGLE-AGENT: Centralized control comparison   
-            train_MultiPolicyTrainer(net_file, ranked, n_episodes)# 4. MULTI-AGENT: Independent learning comparison
+            # train_SinglePolicyTrainer(net_file, ranked, n_episodes)# 5. SINGLE-AGENT: Centralized control comparison   
+            # train_MultiPolicyTrainer(net_file, ranked, n_episodes)# 4. MULTI-AGENT: Independent learning comparison
             
             
 

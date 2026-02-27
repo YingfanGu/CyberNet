@@ -19,7 +19,7 @@ class SumoEnv(AbstractSumoEnv):
         
         # Cyberattack configuration
         self.attack_timestep: Optional[int] = config.get("attack_timestep", None)
-        self.attacked_tls_id: Optional[str] = config.get("attacked_tls_id", None)
+        self.attacked_tls_id: Optional[Any] = config.get("attacked_tls_id", None)  # Can be str or list of str
         self.attack_type: str = config.get("attack_type", "all_red")
         self.attack_triggered = False
         
@@ -153,7 +153,9 @@ class SumoEnv(AbstractSumoEnv):
         """Check if a cyberattack should be triggered at this timestep.
         
         If attack_timestep matches current step_counter and attacked_tls_id is set,
-        trigger the attack on that TLS. Also maintain attack state for TLS under attack.
+        trigger the attack on that TLS (or list of TLS). Also maintain attack state for TLS under attack.
+        
+        Supports both single TLS attack (str) and multiple TLS attack (list of str).
         """
         # Trigger attack if conditions are met
         if (self.attack_timestep is not None and 
@@ -161,8 +163,13 @@ class SumoEnv(AbstractSumoEnv):
             self.step_counter == self.attack_timestep and 
             not self.attack_triggered):
             
-            tls_to_attack = self.kernel.tls_hub[self.attacked_tls_id]
-            tls_to_attack.force_attack(attack_type=self.attack_type)
+            # Handle both single intersection (str) and multiple intersections (list)
+            attacked_ids = self.attacked_tls_id if isinstance(self.attacked_tls_id, list) else [self.attacked_tls_id]
+            
+            for tls_id in attacked_ids:
+                tls_to_attack = self.kernel.tls_hub[tls_id]
+                tls_to_attack.force_attack(attack_type=self.attack_type)
+            
             self.attack_triggered = True
         
         # Maintain attack state for all TLS under attack
